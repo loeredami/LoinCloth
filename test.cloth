@@ -1,0 +1,2 @@
+!new s build
+!set run "go run ."
