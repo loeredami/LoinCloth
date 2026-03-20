@@ -397,6 +397,7 @@ func Run(state *State, cmdArgs []string) {
 	if len(cmdArgs) == 0 {
 		return
 	}
+
 	if !strings.HasPrefix(cmdArgs[0], "!") {
 		if cmdArgs[0] == "cd" {
 			if len(cmdArgs) > 1 {
@@ -410,7 +411,6 @@ func Run(state *State, cmdArgs []string) {
 
 		if cmdArgs[0] == "ls" {
 			state.PrettyLS(cmdArgs)
-
 			return
 		}
 
@@ -418,6 +418,28 @@ func Run(state *State, cmdArgs []string) {
 		c.Stdout = os.Stdout
 		c.Stdin = os.Stdin
 		c.Stderr = os.Stderr
+
+		envMap := make(map[string]string)
+		for _, e := range os.Environ() {
+			pair := strings.SplitN(e, "=", 2)
+			if len(pair) == 2 {
+				envMap[pair[0]] = pair[1]
+			}
+		}
+
+		state.workspaces.Get(state.cur_workspace).IfPresent(func(ws *Workspace) {
+			ws.scopes.ForEach(func(idx int, s *Scope) {
+				s.overrides.ForEach(func(key string, val string) {
+					envMap[key] = val
+				})
+			})
+		})
+
+		finalEnv := make([]string, 0, len(envMap))
+		for k, v := range envMap {
+			finalEnv = append(finalEnv, fmt.Sprintf("%s=%s", k, v))
+		}
+		c.Env = finalEnv
 
 		err := c.Run()
 		if err != nil {
