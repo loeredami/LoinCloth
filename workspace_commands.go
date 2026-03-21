@@ -16,11 +16,32 @@ func GetEnvValue(state *State, key string) ungo.Optional[[]string] {
 		return ungo.None[[]string]()
 	}
 	ws := ws_opt.Value()
+	result := ungo.None[[]string]()
+	var found_in_os bool = false
+	for _, e := range os.Environ() {
+		pair := strings.SplitN(e, "=", 2)
+		if len(pair) == 2 {
+			if pair[0] == key {
+				result = ungo.Some([]string{})
 
+				Lex(pair[1]).ForEach(func(i int, tk Token) {
+					if found_in_os {
+						return
+					}
+					result = ungo.Some(append(result.Value(), tk.Value.OrElse("")))
+					found_in_os = true
+				})
+			}
+		}
+		if found_in_os {
+			break
+		}
+	}
 	i := ws.scopes.Size() - 1
+
 	for {
 		if i < 0 {
-			return ungo.None[[]string]()
+			return result
 		}
 
 		sc_opt := ws.scopes.Get(i)
@@ -49,7 +70,8 @@ func GetEnvValue(state *State, key string) ungo.Optional[[]string] {
 					})
 				})
 
-				return ungo.Some(command_strings)
+				result = ungo.Some(command_strings)
+				break
 			}
 
 		}
@@ -57,6 +79,7 @@ func GetEnvValue(state *State, key string) ungo.Optional[[]string] {
 		i--
 	}
 
+	return result
 }
 
 func HandleStateCommands(state *State, command []string) ungo.Optional[error] {

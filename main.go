@@ -378,7 +378,7 @@ func RunString(state *State, input string) {
 				val = UnformatPathIfInHome(val)
 			}
 
-			if token.Type != Path && token.Type != String {
+			if token.Type == Varname {
 				env_val_opt := GetEnvValue(state, val)
 				if env_val_opt.HasValue() {
 					env_val := env_val_opt.Value()

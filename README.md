@@ -104,7 +104,7 @@ You can also stack scopes, do not worry about your scope names disappearing once
 :builder:r»
 ```
 
-Now, if you have any variables declared in r, which also exists in builder, the varaibles in r will ahve priority over builder.
+Now, if you have any variables declared in r, which also exists in builder, the varaibles in r will have priority over builder.
 
 You can now use the `!set <key> <value>` command like so:
 
@@ -114,20 +114,20 @@ You can now use the `!set <key> <value>` command like so:
 ~/Projects/2026/March/LoinCloth (main) ~5.95µs
 » !set build "go build ."
 ~/Projects/2026/March/LoinCloth (main) ~8.51µs
-» build
+» $build
 ~/Projects/2026/March/LoinCloth (main) ~33.449099ms
 :builder:r»
 ```
 
-Note that the variables you declare only exist in each scope, once you drop them like in the example below, they will no longer exist.
+Note that the variables you declare only exist in each scope, once you drop them like in the example below, they will no longer exist. Variables, wether they are commands or not will be referenced using a $.
 
 ```sh
 ~/Projects/2026/March/LoinCloth (main) ~8.51µs
-» build
+» $build
 ~/Projects/2026/March/LoinCloth (main) ~33.449099ms
 » !drop r
 ~/Projects/2026/March/LoinCloth (main) ~6.83µs
-» build
+» $build
 exec: "build": executable file not found in $PATH
 ~/Projects/2026/March/LoinCloth (main) ~140.141µs
 :builder»
@@ -156,7 +156,7 @@ and run it's commands:
 
 ```sh
 ~/Projects/2026/March/LoinCloth (main) ~57.05µs
-» update github.com/loeredami/ungo@latest
+» $update github.com/loeredami/ungo@latest
 ~/Projects/2026/March/LoinCloth (main) ~314.921787ms
 :go-builder»
 ```

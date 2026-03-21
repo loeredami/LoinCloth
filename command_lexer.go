@@ -16,6 +16,7 @@ const (
 	Path
 	EndOfInput
 	Symbol
+	Varname
 )
 
 type Token struct {
@@ -92,7 +93,7 @@ func Lex(input string) *ungo.LinkedList[Token] {
 				if state.IsDone() {
 					return state
 				}
-				blacklist := "#"
+				blacklist := "#$"
 				if strings.Contains(blacklist, string([]byte{state.input[0]})) {
 					return state
 				}
@@ -153,6 +154,23 @@ func Lex(input string) *ungo.LinkedList[Token] {
 					}
 					state.tokens.Add(Token{String, ungo.Some(builder.String())})
 				}
+				return state
+			},
+
+			// get var name
+			func(state *LexState) *LexState {
+				if !state.IsDone() && state.input[0] == '$' {
+					state.input = state.input[1:]
+					var builder strings.Builder
+
+					for !state.IsDone() && !unicode.IsSpace(rune(state.input[0])) {
+						builder.WriteByte(state.input[0])
+						state.input = state.input[1:]
+					}
+
+					state.tokens.Add(Token{Varname, ungo.Some(builder.String())})
+				}
+
 				return state
 			},
 
