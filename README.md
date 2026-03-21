@@ -164,3 +164,19 @@ and run it's commands:
 This ran `go get -u github.com/loeredami/ungo@latest`, with the `GOPROXY` set to `direct`.
 
 `!drop go-builder`, to drop the builder commands and variables
+
+
+# Other
+## Comments
+
+Comments start and end with `##`
+
+example:
+```sh
+~/Projects/2026/March/LoinCloth (main) ~877.004µs
+» echo Hello ## I am a comment, I will not be printed out. ## World
+Hello World
+~/Projects/2026/March/LoinCloth (main) ~557.296µs
+»
+```
+I really need custom syntax highlighting for this.

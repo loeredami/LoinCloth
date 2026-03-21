@@ -92,8 +92,8 @@ func Lex(input string) *ungo.LinkedList[Token] {
 				if state.IsDone() {
 					return state
 				}
-				blacklist := ""
-				if strings.Contains(blacklist, string(state.input[0])) {
+				blacklist := "#"
+				if strings.Contains(blacklist, string([]byte{state.input[0]})) {
 					return state
 				}
 				if !unicode.IsSpace(rune(state.input[0])) && !unicode.IsNumber(rune(state.input[0])) && state.input[0] != '"' {
@@ -153,6 +153,22 @@ func Lex(input string) *ungo.LinkedList[Token] {
 					}
 					state.tokens.Add(Token{String, ungo.Some(builder.String())})
 				}
+				return state
+			},
+
+			// skip comments
+			func(state *LexState) *LexState {
+				if len(state.input) > 2 && state.input[0] == '#' && state.input[1] == '#' {
+					state.input = state.input[1:]
+					state.input = state.input[1:]
+					for len(state.input) > 2 && !(state.input[0] == '#' && state.input[1] == '#') {
+						state.input = state.input[1:]
+					}
+
+					state.input = state.input[1:]
+					state.input = state.input[1:]
+				}
+
 				return state
 			},
 		})
