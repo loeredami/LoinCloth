@@ -180,3 +180,17 @@ Hello World
 »
 ```
 I really need custom syntax highlighting for this.
+
+## Inline commands
+
+Need the output of one command as input for another?
+No problem, just throw it in some `{}`!
+
+```sh
+~/Projects/2026/March/LoinCloth (main)
+» echo {ls $HOME}
+.android/ .bash_history .bash_logout .bash_profile  .bashrc .bun/ .cache/ .cargo/  .config/ .dotnet/ .emulator_console_auth_token.fonts.conf  .gitconfig .gnupg/ .gradle/ .gtkrc-2.0  .java/ .junie/ .local/ .minecraft/  .node_repl_history .notify-osd .npm/ .nuget/  .nv/ .pki/ .profile .pulse-cookie  .python_history .ssh/ .steam/ .steampath@  .steampid@ .templateengine/ .themes/ .var/  .viminfo .visualizers/ .vscode-oss/ .wget-hsts  .wine/ .xinitrc .zshrc Android/  Assets/ Desktop/ Documents/ Downloads/  Games/ MPSProjects/ Music/ Pictures/  Programs/ Projects/ Public/ PyCharmMiscProject/  Templates/ Videos/ go/ snap/  src/
+~/Projects/2026/March/LoinCloth (main) ~780.915µs
+»
+```
+This example is useless, but it gets the point across.
