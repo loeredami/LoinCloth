@@ -112,18 +112,25 @@ func (state *State) HandleAutocomplete(buffer []rune, cursor *int) []rune {
 		}
 
 		searchPath := lastArgUnescaped.String()
-		// ... (Home directory expansion logic remains the same) ...
+		// Resolve tilde to actual home directory for OS lookup
+		resolvedSearchPath := UnformatPathIfInHome(searchPath)
 
 		dir := "."
 		prefix := searchPath
-		lastSlash := strings.LastIndex(searchPath, "/")
+		lastSlash := strings.LastIndex(resolvedSearchPath, "/")
+
 		if lastSlash != -1 {
 			if lastSlash == 0 {
 				dir = "/"
 			} else {
-				dir = searchPath[:lastSlash]
+				dir = resolvedSearchPath[:lastSlash]
 			}
-			prefix = searchPath[lastSlash+1:]
+			// Use original searchPath to find where the filename prefix starts
+			lastSlashInOriginal := strings.LastIndex(searchPath, "/")
+			prefix = searchPath[lastSlashInOriginal+1:]
+		} else if strings.HasPrefix(searchPath, "~") {
+			dir = UnformatPathIfInHome("~")
+			prefix = ""
 		}
 
 		entries, err := os.ReadDir(dir)
@@ -137,7 +144,6 @@ func (state *State) HandleAutocomplete(buffer []rune, cursor *int) []rune {
 				var appendStr strings.Builder
 
 				for _, r := range remainder {
-					// Escape spaces if we are NOT in quotes
 					if r == ' ' && !inQuotes {
 						appendStr.WriteRune('\\')
 					}
