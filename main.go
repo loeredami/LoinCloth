@@ -152,9 +152,6 @@ func (state *State) HandleAutocomplete(buffer []rune, cursor *int) []rune {
 				var appendStr strings.Builder
 
 				for _, r := range remainder {
-					if r == ' ' && !inQuotes {
-						appendStr.WriteRune('\\')
-					}
 					appendStr.WriteRune(r)
 				}
 

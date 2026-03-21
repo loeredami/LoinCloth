@@ -84,7 +84,7 @@ func Lex(input string) *ungo.LinkedList[Token] {
 						curr := state.input[0]
 
 						if curr == '\\' && len(state.input) > 1 && state.input[1] == ' ' {
-							builder.WriteByte(' ')
+							builder.WriteByte(' ') // Only write the space, consume the backslash
 							state.input = state.input[2:]
 							continue
 						}
