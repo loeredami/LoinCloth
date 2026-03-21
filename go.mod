@@ -1,4 +1,4 @@
-module Loin
+module loin
 
 go 1.26.1
 

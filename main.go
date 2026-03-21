@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -58,7 +59,12 @@ type State struct {
 	cur_workspace int
 	workspaces    *ungo.LinkedList[*Workspace]
 	history       []string
-	historyIndex  int // Track current position in history while navigating
+	historyIndex  int
+
+	autoCompleteMatches []string
+	autoCompleteIndex   int
+	lastWasTab          bool
+	lastAddedLen        int
 }
 
 func (state *State) RefreshLine(prompt string, buffer []rune, cursor int) {
@@ -70,103 +76,113 @@ func (state *State) RefreshLine(prompt string, buffer []rune, cursor int) {
 }
 
 func (state *State) HandleAutocomplete(buffer []rune, cursor *int) []rune {
-	currentLine := string(buffer[:*cursor])
+	if state.lastWasTab && len(state.autoCompleteMatches) > 0 {
+		buffer = append(buffer[:*cursor-state.lastAddedLen], buffer[*cursor:]...)
+		*cursor -= state.lastAddedLen
 
-	var lastArgRaw strings.Builder
-	var lastArgUnescaped strings.Builder
-	inQuotes := false
-	escaped := false
+		state.autoCompleteIndex = (state.autoCompleteIndex + 1) % len(state.autoCompleteMatches)
+	} else {
+		state.autoCompleteMatches = []string{}
+		state.autoCompleteIndex = 0
+		state.lastAddedLen = 0
 
-	for _, r := range currentLine {
-		if escaped {
+		currentLine := string(buffer[:*cursor])
+		var lastArgRaw strings.Builder
+		var lastArgUnescaped strings.Builder
+		inQuotes := false
+		escaped := false
+
+		for _, r := range currentLine {
+			if escaped {
+				lastArgRaw.WriteRune(r)
+				lastArgUnescaped.WriteRune(r)
+				escaped = false
+				continue
+			}
+			if r == '\\' {
+				lastArgRaw.WriteRune(r)
+				escaped = true
+				continue
+			}
+			if r == '"' {
+				lastArgRaw.WriteRune(r)
+				inQuotes = !inQuotes
+				continue
+			}
+			if r == ' ' && !inQuotes {
+				lastArgRaw.Reset()
+				lastArgUnescaped.Reset()
+				continue
+			}
 			lastArgRaw.WriteRune(r)
 			lastArgUnescaped.WriteRune(r)
-			escaped = false
-			continue
 		}
 
-		if r == '\\' {
-			lastArgRaw.WriteRune(r)
-			escaped = true
-			continue
-		}
-
-		if r == '"' {
-			lastArgRaw.WriteRune(r)
-			inQuotes = !inQuotes
-			continue
-		}
-
-		if r == ' ' && !inQuotes {
-			lastArgRaw.Reset()
-			lastArgUnescaped.Reset()
-			continue
-		}
-
-		lastArgRaw.WriteRune(r)
-		lastArgUnescaped.WriteRune(r)
-	}
-
-	searchPath := lastArgUnescaped.String()
-	if strings.HasPrefix(searchPath, "~") {
-		if home, err := os.UserHomeDir(); err == nil {
-			if len(searchPath) == 1 {
-				searchPath = home
-			} else if searchPath[1] == '/' {
-				searchPath = home + searchPath[1:]
-			}
-		}
-	}
-
-	dir := "."
-	prefix := searchPath
-	lastSlash := strings.LastIndex(searchPath, "/")
-	if lastSlash != -1 {
-		if lastSlash == 0 {
-			dir = "/"
-		} else {
-			dir = searchPath[:lastSlash]
-		}
-		prefix = searchPath[lastSlash+1:]
-	}
-
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return buffer
-	}
-
-	for _, entry := range entries {
-		if strings.HasPrefix(entry.Name(), prefix) {
-			remainder := entry.Name()[len(prefix):]
-			var appendStr strings.Builder
-
-			for _, r := range remainder {
-				if r == ' ' && !inQuotes {
-					appendStr.WriteRune('\\')
+		searchPath := lastArgUnescaped.String()
+		if strings.HasPrefix(searchPath, "~") {
+			if home, err := os.UserHomeDir(); err == nil {
+				if len(searchPath) == 1 {
+					searchPath = home
+				} else if searchPath[1] == '/' {
+					searchPath = home + searchPath[1:]
 				}
-				appendStr.WriteRune(r)
 			}
+		}
 
-			if entry.IsDir() {
-				appendStr.WriteRune('/')
+		dir := "."
+		prefix := searchPath
+		lastSlash := strings.LastIndex(searchPath, "/")
+		if lastSlash != -1 {
+			if lastSlash == 0 {
+				dir = "/"
 			} else {
-				if inQuotes {
-					appendStr.WriteRune('"')
-				}
-				appendStr.WriteRune(' ')
+				dir = searchPath[:lastSlash]
 			}
-
-			newSuffix := []rune(appendStr.String())
-			buffer = append(buffer[:*cursor], append(newSuffix, buffer[*cursor:]...)...)
-			*cursor += len(newSuffix)
-			break
+			prefix = searchPath[lastSlash+1:]
 		}
+
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			return buffer
+		}
+
+		for _, entry := range entries {
+			if strings.HasPrefix(entry.Name(), prefix) {
+				remainder := entry.Name()[len(prefix):]
+				var appendStr strings.Builder
+
+				for _, r := range remainder {
+					if r == ' ' && !inQuotes {
+						appendStr.WriteRune('\\')
+					}
+					appendStr.WriteRune(r)
+				}
+
+				if entry.IsDir() {
+					appendStr.WriteRune('/')
+				} else {
+					if inQuotes {
+						appendStr.WriteRune('"')
+					}
+					appendStr.WriteRune(' ')
+				}
+				state.autoCompleteMatches = append(state.autoCompleteMatches, appendStr.String())
+			}
+		}
+	}
+
+	if len(state.autoCompleteMatches) > 0 {
+		match := state.autoCompleteMatches[state.autoCompleteIndex]
+		newSuffix := []rune(match)
+		buffer = append(buffer[:*cursor], append(newSuffix, buffer[*cursor:]...)...)
+		*cursor += len(newSuffix)
+		state.lastAddedLen = len(newSuffix)
 	}
 
 	return buffer
 }
 
-func (state *State) PrettyLS(cmdArgs []string) {
+func (state *State) PrettyLS(w io.Writer, cmdArgs []string) {
 	path := "."
 	if len(cmdArgs) > 1 {
 		path = cmdArgs[1]
@@ -174,11 +190,11 @@ func (state *State) PrettyLS(cmdArgs []string) {
 
 	entries, err := os.ReadDir(path)
 	if err != nil {
-		fmt.Printf("%sError: %v%s\n", Red, err, Reset)
+		fmt.Fprintf(w, "%sError: %v%s\n", Red, err, Reset)
 		return
 	}
 
-	fmt.Println()
+	fmt.Fprintln(w)
 	for i, entry := range entries {
 		name := entry.Name()
 		style := White
@@ -195,16 +211,16 @@ func (state *State) PrettyLS(cmdArgs []string) {
 			indicator = "*"
 		}
 
-		fmt.Printf("%s%-20s%s", style, name+indicator, Reset)
+		fmt.Fprintf(w, "%s%-20s%s", style, name+indicator, Reset)
 
 		if (i+1)%4 == 0 {
-			fmt.Println()
+			fmt.Fprintln(w)
 		}
 	}
-	fmt.Print("\n\n")
+	fmt.Fprint(w, "\n\n")
 }
 
-func Prompt(state *State, time_taken ungo.Optional[time.Duration]) string {
+func renderPromptInfo(state *State, time_taken ungo.Optional[time.Duration]) string {
 	cur_dir, _ := os.Getwd()
 	admin := os.Getuid() == 0
 	in_sign := ungo.If(admin, fmt.Sprintf("%s#SUDO»%s", Red, Reset), fmt.Sprintf("%s»%s", Magenta, Reset))
@@ -224,18 +240,11 @@ func Prompt(state *State, time_taken ungo.Optional[time.Duration]) string {
 		}
 
 		if idx == state.cur_workspace {
-			entries, err := os.ReadDir(".git")
-			if err == nil {
-				for _, entry := range entries {
-					if entry.Name() == "HEAD" {
-						header, err := os.ReadFile("./.git/HEAD")
-						if err == nil {
-							splitted := strings.Split(string(header), "/")
-							branch_name := strings.TrimSpace(splitted[len(splitted)-1])
-							fmt.Printf(" (%s%s%s)", Green, branch_name, Reset)
-							break
-						}
-					}
+			if _, err := os.ReadDir(".git"); err == nil {
+				if header, err := os.ReadFile("./.git/HEAD"); err == nil {
+					splitted := strings.Split(string(header), "/")
+					branch_name := strings.TrimSpace(splitted[len(splitted)-1])
+					fmt.Printf(" (%s%s%s)", Green, branch_name, Reset)
 				}
 			}
 		}
@@ -256,19 +265,12 @@ func Prompt(state *State, time_taken ungo.Optional[time.Duration]) string {
 
 	promptStr := fmt.Sprintf("%s%s ", in_sign, Cyan)
 	fmt.Print(promptStr)
+	return promptStr
+}
 
-	fd := os.Stdin.Fd()
-	oldState, err := MakeRaw(fd)
-	if err != nil {
-		var input string
-		fmt.Scanln(&input)
-		return input
-	}
-	defer RestoreTerminal(fd, oldState)
-
+func readRawInput(state *State, promptStr string) string {
 	var buffer []rune
 	cursor := 0
-	// Initialize history index to the end of history
 	historyIdx := len(state.history)
 
 	for {
@@ -280,14 +282,15 @@ func Prompt(state *State, time_taken ungo.Optional[time.Duration]) string {
 
 		char := b[0]
 
+		if char != 9 {
+			state.lastWasTab = false
+		}
+
 		switch char {
 		case 13, 10: // Enter
 			input := strings.TrimSpace(string(buffer))
-			if input != "" {
-				// Avoid duplicate consecutive history entries
-				if len(state.history) == 0 || state.history[len(state.history)-1] != input {
-					state.history = append(state.history, input)
-				}
+			if input != "" && (len(state.history) == 0 || state.history[len(state.history)-1] != input) {
+				state.history = append(state.history, input)
 			}
 			fmt.Print("\r\n")
 			return input
@@ -299,21 +302,22 @@ func Prompt(state *State, time_taken ungo.Optional[time.Duration]) string {
 				state.RefreshLine(promptStr, buffer, cursor)
 			}
 
-		case 9: // Tab (Autocomplete)
+		case 9: // Tab
 			buffer = state.HandleAutocomplete(buffer, &cursor)
 			state.RefreshLine(promptStr, buffer, cursor)
+			state.lastWasTab = true
 
-		case 27: // Escape sequences
+		case 27: // Arrows
 			if n > 2 && b[1] == 91 {
 				switch b[2] {
-				case 65: // Up Arrow (History Back)
+				case 65: // Up
 					if historyIdx > 0 {
 						historyIdx--
 						buffer = []rune(state.history[historyIdx])
 						cursor = len(buffer)
 						state.RefreshLine(promptStr, buffer, cursor)
 					}
-				case 66: // Down Arrow (History Forward)
+				case 66: // Down
 					if historyIdx < len(state.history)-1 {
 						historyIdx++
 						buffer = []rune(state.history[historyIdx])
@@ -325,24 +329,15 @@ func Prompt(state *State, time_taken ungo.Optional[time.Duration]) string {
 						cursor = 0
 						state.RefreshLine(promptStr, buffer, cursor)
 					}
-				case 68: // Left Arrow
+				case 68: // Left
 					if cursor > 0 {
 						cursor--
 						state.RefreshLine(promptStr, buffer, cursor)
 					}
-				case 67: // Right Arrow
+				case 67: // Right
 					if cursor < len(buffer) {
 						cursor++
 						state.RefreshLine(promptStr, buffer, cursor)
-					}
-				case 51: // Delete Key
-					nextByte := make([]byte, 1)
-					os.Stdin.Read(nextByte)
-					if nextByte[0] == 126 {
-						if cursor < len(buffer) {
-							buffer = append(buffer[:cursor], buffer[cursor+1:]...)
-							state.RefreshLine(promptStr, buffer, cursor)
-						}
 					}
 				}
 			}
@@ -364,13 +359,59 @@ func Prompt(state *State, time_taken ungo.Optional[time.Duration]) string {
 		}
 	}
 }
-func RunString(state *State, input string) {
-	tokens := Lex(input)
-	cmd := []string{}
 
-	tokens.ForEach(func(idx int, token Token) {
+func Prompt(state *State, time_taken ungo.Optional[time.Duration]) string {
+	promptStr := renderPromptInfo(state, time_taken)
+
+	fd := os.Stdin.Fd()
+	oldState, err := MakeRaw(fd)
+	if err != nil {
+		var input string
+		fmt.Scanln(&input)
+		return input
+	}
+	defer RestoreTerminal(fd, oldState)
+
+	return readRawInput(state, promptStr)
+}
+
+func RunAndCapture(state *State, cmdArgs []string) string {
+	var builder strings.Builder
+	Run(state, cmdArgs, &builder)
+	return builder.String()
+}
+
+func processTokens(state *State, tokenSlice []Token) []string {
+	var cmd []string
+
+	for i := 0; i < len(tokenSlice); i++ {
+		token := tokenSlice[i]
 		if token.Type == EndOfInput {
-			return
+			break
+		}
+
+		if token.Type == OpenBrace {
+			depth := 1
+			var innerTokens []Token
+			j := i + 1
+			for ; j < len(tokenSlice); j++ {
+				if tokenSlice[j].Type == OpenBrace {
+					depth++
+				} else if tokenSlice[j].Type == CloseBrace {
+					depth--
+					if depth == 0 {
+						break
+					}
+				}
+				innerTokens = append(innerTokens, tokenSlice[j])
+			}
+			i = j
+
+			innerArgs := processTokens(state, innerTokens)
+			output := RunAndCapture(state, innerArgs)
+			words := strings.Fields(output)
+			cmd = append(cmd, words...)
+			continue
 		}
 
 		token.Value.IfPresent(func(val string) {
@@ -382,20 +423,29 @@ func RunString(state *State, input string) {
 				env_val_opt := GetEnvValue(state, val)
 				if env_val_opt.HasValue() {
 					env_val := env_val_opt.Value()
-					for _, v := range env_val {
-						cmd = append(cmd, v)
-					}
+					cmd = append(cmd, env_val...)
 					return
 				}
 			}
 
 			cmd = append(cmd, val)
 		})
-	})
-	Run(state, cmd)
+	}
+	return cmd
 }
 
-func Run(state *State, cmdArgs []string) {
+func RunString(state *State, input string) {
+	tokens := Lex(input)
+	var tokenSlice []Token
+	tokens.ForEach(func(idx int, token Token) {
+		tokenSlice = append(tokenSlice, token)
+	})
+
+	cmd := processTokens(state, tokenSlice)
+	Run(state, cmd, os.Stdout)
+}
+
+func Run(state *State, cmdArgs []string, w io.Writer) {
 	if len(cmdArgs) == 0 {
 		return
 	}
@@ -412,12 +462,12 @@ func Run(state *State, cmdArgs []string) {
 		}
 
 		if cmdArgs[0] == "ls" {
-			state.PrettyLS(cmdArgs)
+			state.PrettyLS(w, cmdArgs)
 			return
 		}
 
 		c := exec.Command(cmdArgs[0], cmdArgs[1:]...)
-		c.Stdout = os.Stdout
+		c.Stdout = w
 		c.Stdin = os.Stdin
 		c.Stderr = os.Stderr
 
@@ -445,12 +495,12 @@ func Run(state *State, cmdArgs []string) {
 
 		err := c.Run()
 		if err != nil {
-			fmt.Printf("%s%v%s\n", Red, err, Reset)
+			fmt.Fprintf(w, "%s%v%s\n", Red, err, Reset)
 		}
 	} else {
 		res := HandleStateCommands(state, cmdArgs)
 		res.IfPresent(func(err error) {
-			fmt.Printf("%s%v%s\n", Red, err, Reset)
+			fmt.Fprintf(w, "%s%v%s\n", Red, err, Reset)
 		})
 	}
 }

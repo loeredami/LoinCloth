@@ -1,6 +1,6 @@
 #!/bin/bash
 
-APP_NAME="Loin"
+APP_NAME="loin"
 BUILD_DIR="builds"
 
 mkdir -p $BUILD_DIR

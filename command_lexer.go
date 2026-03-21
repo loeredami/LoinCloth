@@ -17,6 +17,8 @@ const (
 	EndOfInput
 	Symbol
 	Varname
+	OpenBrace
+	CloseBrace
 )
 
 type Token struct {
@@ -50,6 +52,21 @@ func Lex(input string) *ungo.LinkedList[Token] {
 					for !state.IsDone() && unicode.IsSpace(rune(state.input[0])) {
 						state.input = state.input[1:]
 					}
+				}
+				return state
+			},
+
+			// Braces
+			func(state *LexState) *LexState {
+				if state.IsDone() {
+					return state
+				}
+				if state.input[0] == '{' {
+					state.tokens.Add(Token{OpenBrace, ungo.Some("{")})
+					state.input = state.input[1:]
+				} else if state.input[0] == '}' {
+					state.tokens.Add(Token{CloseBrace, ungo.Some("}")})
+					state.input = state.input[1:]
 				}
 				return state
 			},
@@ -93,7 +110,7 @@ func Lex(input string) *ungo.LinkedList[Token] {
 				if state.IsDone() {
 					return state
 				}
-				blacklist := "#$"
+				blacklist := "#${}"
 				if strings.Contains(blacklist, string([]byte{state.input[0]})) {
 					return state
 				}
@@ -108,7 +125,7 @@ func Lex(input string) *ungo.LinkedList[Token] {
 							continue
 						}
 
-						if unicode.IsSpace(rune(curr)) {
+						if unicode.IsSpace(rune(curr)) || curr == '{' || curr == '}' {
 							break
 						}
 
@@ -163,7 +180,7 @@ func Lex(input string) *ungo.LinkedList[Token] {
 					state.input = state.input[1:]
 					var builder strings.Builder
 
-					for !state.IsDone() && !unicode.IsSpace(rune(state.input[0])) {
+					for !state.IsDone() && !unicode.IsSpace(rune(state.input[0])) && state.input[0] != '}' {
 						builder.WriteByte(state.input[0])
 						state.input = state.input[1:]
 					}
