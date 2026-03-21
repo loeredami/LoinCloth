@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/loeredami/ungo"
@@ -454,6 +456,9 @@ func Run(state *State, cmdArgs []string) {
 }
 
 func main() {
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
 	state := &State{
 		cur_workspace: 0,
 		workspaces:    ungo.NewLinkedList[*Workspace](),
