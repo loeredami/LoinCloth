@@ -13,16 +13,6 @@ import (
 	"github.com/loeredami/ungo"
 )
 
-var Reset = "\033[0m"
-var Red = "\033[31m"
-var Green = "\033[32m"
-var Yellow = "\033[33m"
-var Blue = "\033[34m"
-var Magenta = "\033[35m"
-var Cyan = "\033[36m"
-var Gray = "\033[37m"
-var White = "\033[97m"
-
 func ReformatPathIfInHome(path string) string {
 	dirname, err := os.UserHomeDir()
 	if err != nil {
@@ -65,6 +55,8 @@ type State struct {
 	autoCompleteIndex   int
 	lastWasTab          bool
 	lastAddedLen        int
+
+	config Configuration
 }
 
 func (state *State) RefreshLine(prompt string, buffer []rune, cursor int) {
@@ -187,21 +179,21 @@ func (state *State) PrettyLS(w io.Writer, cmdArgs []string) {
 	fmt.Fprintln(w)
 	for i, entry := range entries {
 		name := entry.Name()
-		style := White
+		style := state.GetColor(state.config.LSNormalCol)
 		indicator := ""
 
 		if entry.IsDir() {
-			style = Blue
+			style = state.GetColor(state.config.LSDirCol)
 			indicator = "/"
 		} else if entry.Type()&os.ModeSymlink != 0 {
-			style = Cyan
+			style = state.GetColor(state.config.LSSymLinkCol)
 			indicator = "@"
 		} else if info, err := entry.Info(); err == nil && info.Mode()&0111 != 0 {
-			style = Green
+			style = state.GetColor(state.config.LSExecCol)
 			indicator = "*"
 		}
 
-		fmt.Fprintf(w, "%s%-20s%s", style, name+indicator, Reset)
+		fmt.Fprintf(w, "%s%-20s%s", style, name+indicator, state.Reset())
 
 		if (i+1)%4 == 0 {
 			fmt.Fprintln(w)
@@ -213,19 +205,19 @@ func (state *State) PrettyLS(w io.Writer, cmdArgs []string) {
 func renderPromptInfo(state *State, time_taken ungo.Optional[time.Duration]) string {
 	cur_dir, _ := os.Getwd()
 	admin := os.Getuid() == 0
-	in_sign := ungo.If(admin, fmt.Sprintf("%s#SUDO»%s", Red, Reset), fmt.Sprintf("%s»%s", Magenta, Reset))
+	in_sign := ungo.If(admin, fmt.Sprintf("%s%s%s", state.GetColor(state.config.SudoPromptCol), state.config.SudoPrompt, state.Reset()), fmt.Sprintf("%s%s%s", state.GetColor(state.config.PromptCol), state.config.Prompt, state.Reset()))
 
 	state.workspaces.ForEach(func(idx int, ws *Workspace) {
 		if state.workspaces.Size() != 1 {
-			fmt.Printf("[%s%d%s] ", Cyan, idx, Reset)
+			fmt.Printf("[%s%d%s] ", state.GetColor(state.config.IdxCol), idx, state.Reset())
 		}
-		fmt.Printf("%s%s%s", Blue, ReformatPathIfInHome(ws.path), Reset)
+		fmt.Printf("%s%s%s", state.GetColor(state.config.PathColor), ReformatPathIfInHome(ws.path), state.Reset())
 
 		if state.workspaces.Size() != 1 {
 			if idx == state.cur_workspace {
-				fmt.Printf(" [%s*%s]", Cyan, Reset)
+				fmt.Printf(" [%s*%s]", state.GetColor(state.config.CurWSCol), state.Reset())
 			} else if cur_dir == ws.path {
-				fmt.Printf(" [%sH%s]", Yellow, Reset)
+				fmt.Printf(" [%sH%s]", state.GetColor(state.config.CurDirCol), state.Reset())
 			}
 		}
 
@@ -234,14 +226,14 @@ func renderPromptInfo(state *State, time_taken ungo.Optional[time.Duration]) str
 				if header, err := os.ReadFile("./.git/HEAD"); err == nil {
 					splitted := strings.Split(string(header), "/")
 					branch_name := strings.TrimSpace(splitted[len(splitted)-1])
-					fmt.Printf(" (%s%s%s)", Green, branch_name, Reset)
+					fmt.Printf(" (%s%s%s)", state.GetColor(state.config.GitBranchCol), branch_name, state.Reset())
 				}
 			}
 		}
 
 		time_taken.IfPresent(func(duration time.Duration) {
 			if idx == state.cur_workspace {
-				fmt.Printf(" %s~%s%v%s", Cyan, Yellow, duration, Reset)
+				fmt.Printf(" %s~%s%v%s", state.GetColor(state.config.TimePrefixCol), state.GetColor(state.config.TimeCol), duration, state.Reset())
 			}
 		})
 		fmt.Print("\n")
@@ -249,11 +241,11 @@ func renderPromptInfo(state *State, time_taken ungo.Optional[time.Duration]) str
 
 	state.workspaces.Get(state.cur_workspace).IfPresent(func(w *Workspace) {
 		w.scopes.ForEach(func(idx int, s *Scope) {
-			fmt.Printf(":%s%s%s", Yellow, s.name, Reset)
+			fmt.Printf("%s%s%s%s", state.config.ScopeSign, state.GetColor(state.config.ScopeSign), s.name, state.Reset())
 		})
 	})
 
-	promptStr := fmt.Sprintf("%s%s ", in_sign, Cyan)
+	promptStr := fmt.Sprintf("%s%s ", in_sign, state.GetColor(state.config.InputColor))
 	fmt.Print(promptStr)
 	return promptStr
 }
@@ -500,12 +492,12 @@ func Run(state *State, cmdArgs []string, w io.Writer) {
 
 		err := c.Run()
 		if err != nil {
-			fmt.Fprintf(w, "%s%v%s\n", Red, err, Reset)
+			fmt.Fprintf(w, "%s%v%s\n", state.GetColor(state.config.ErrorCol), err, state.Reset())
 		}
 	} else {
 		res := HandleStateCommands(state, cmdArgs)
 		res.IfPresent(func(err error) {
-			fmt.Fprintf(w, "%s%v%s\n", Red, err, Reset)
+			fmt.Fprintf(w, "%s%v%s\n", state.GetColor(state.config.ErrorCol), err, state.Reset())
 		})
 	}
 }
@@ -519,6 +511,7 @@ func main() {
 	state := &State{
 		cur_workspace: 0,
 		workspaces:    ungo.NewLinkedList[*Workspace](),
+		config:        DefaultConfiguration(),
 	}
 
 	start_dir, _ := os.Getwd()
@@ -531,6 +524,7 @@ func main() {
 
 	for {
 		input := Prompt(state, duration)
+		fmt.Print(state.Reset())
 		duration = ungo.None[time.Duration]()
 
 		if input == "exit" {
