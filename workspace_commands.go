@@ -225,6 +225,101 @@ func HandleStateCommands(state *State, command []string) ungo.Optional[error] {
 
 		return ungo.None[error]()
 
+	case "!color":
+		if len(command) < 3 {
+			return ungo.Some(fmt.Errorf("expected field name <string> and color code <int>"))
+		}
+
+		color_int, err := strconv.ParseUint(command[2], 10, 64)
+		if err != nil {
+			return ungo.Some(fmt.Errorf("could not parse color int '%s': %v", command[1], err))
+		}
+
+		color := fmt.Sprintf("\033[%dm", color_int)
+
+		switch command[1] {
+		case "err":
+			state.config.ErrorCol = color
+			return ungo.None[error]()
+		case "ls-dir":
+			state.config.LSDirCol = color
+			return ungo.None[error]()
+		case "ls-sym-link":
+			state.config.LSSymLinkCol = color
+			return ungo.None[error]()
+		case "ls-exec":
+			state.config.LSExecCol = color
+			return ungo.None[error]()
+		case "ls-normal":
+			state.config.LSNormalCol = color
+			return ungo.None[error]()
+		case "sudo-prompt":
+			state.config.SudoPromptCol = color
+			return ungo.None[error]()
+		case "prompt":
+			state.config.PromptCol = color
+			return ungo.None[error]()
+		case "idx":
+			state.config.IdxCol = color
+			return ungo.None[error]()
+		case "cur-ws":
+			state.config.CurWSCol = color
+			return ungo.None[error]()
+		case "cur-dir":
+			state.config.CurDirCol = color
+			return ungo.None[error]()
+		case "cur-dir-indic":
+			state.config.CurDirIndicCol = color
+			return ungo.None[error]()
+		case "git-branch":
+			state.config.GitBranchCol = color
+			return ungo.None[error]()
+		case "time":
+			state.config.TimeCol = color
+			return ungo.None[error]()
+		case "time-prefix":
+			state.config.TimePrefixCol = color
+			return ungo.None[error]()
+		case "scope":
+			state.config.ScopeColor = color
+			return ungo.None[error]()
+		case "input":
+			state.config.InputColor = color
+			return ungo.None[error]()
+		case "path":
+			state.config.PathColor = color
+			return ungo.None[error]()
+		}
+
+		return ungo.Some(fmt.Errorf("cound not find color field '%s'", command[1]))
+
+	case "!local":
+		if len(command) < 3 {
+			return ungo.Some(fmt.Errorf("expected field name <string> and string value <string>"))
+		}
+
+		switch command[1] {
+		case "sudo-prompt":
+			state.config.SudoPrompt = command[2]
+			return ungo.None[error]()
+		case "prompt":
+			state.config.Prompt = command[2]
+			return ungo.None[error]()
+		case "scope-sign":
+			state.config.ScopeSign = command[2]
+			return ungo.None[error]()
+		}
+
+		return ungo.Some(fmt.Errorf("cound not find string field '%s'", command[1]))
+
+	case "!enable-colors":
+		state.config.ColorMode = true
+		return ungo.None[error]()
+
+	case "!disable-colors":
+		state.config.ColorMode = false
+		return ungo.None[error]()
+
 	default:
 		return ungo.Some(fmt.Errorf("unrecognised internal command: %s", command[0]))
 	}
