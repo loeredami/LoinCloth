@@ -3,7 +3,10 @@
 package main
 
 import (
+	"fmt"
+	"io"
 	"os"
+	"os/exec"
 	"syscall"
 	"unsafe"
 )
@@ -17,6 +20,128 @@ const (
 const (
 	is_windows = true
 )
+
+func RunWinCommands(cmdArgs []string) {
+	if cmdArgs[0] == "mkdir" {
+		if len(cmdArgs) > 1 {
+			err := os.Mkdir(cmdArgs[1], os.ModeDir)
+			if err != nil {
+				fmt.Printf("%s%v%s", Red, err, Reset)
+			}
+		}
+		return
+	}
+	if cmdArgs[0] == "clear" {
+		cmd := exec.Command("cmd", "/c", "cls")
+		cmd.Stdout = os.Stdout
+		err := cmd.Run()
+		if err != nil {
+			fmt.Printf("%s%v%s", Red, err, Reset)
+		}
+		return
+	}
+	if cmdArgs[0] == "echo" {
+		if len(cmdArgs) > 1 {
+			for _, str := range cmdArgs[1:] {
+				fmt.Print(str, " ")
+			}
+			fmt.Println()
+		}
+		return
+	}
+	if cmdArgs[0] == "cp" {
+		if len(cmdArgs) > 2 {
+			err := copyDir(cmdArgs[1], cmdArgs[2])
+			if err != nil {
+				fmt.Printf("%s%v%s", Red, err, Reset)
+			}
+		}
+		return
+	}
+	if cmdArgs[0] == "mv" {
+		if len(cmdArgs) > 2 {
+			err := os.Rename(cmdArgs[1], cmdArgs[2])
+			if err != nil {
+				fmt.Printf("%s%v%s", Red, err, Reset)
+			}
+		}
+		return
+	}
+	if cmdArgs[0] == "rm" {
+		if len(cmdArgs) > 1 {
+			err := os.RemoveAll(cmdArgs[1])
+			if err != nil {
+				fmt.Printf("%s%v%s", Red, err, Reset)
+			}
+		}
+		return
+	}
+}
+
+func copyDir(src, dst string) error {
+	// get properties of source dir
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+
+	// create destination dir
+	err = os.MkdirAll(dst, srcInfo.Mode())
+	if err != nil {
+		return err
+	}
+
+	// get contents of the source dir
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		return err
+	}
+
+	// copy each file/dir in the source dir to destination dir
+	for _, entry := range entries {
+		srcPath := src + "/" + entry.Name()
+		dstPath := dst + "/" + entry.Name()
+
+		// recursively copy a directory
+		if entry.IsDir() {
+			err = copyDir(srcPath, dstPath)
+			if err != nil {
+				return err
+			}
+		} else {
+			// perform copy operation on a file
+			err = copyFile(srcPath, dstPath)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func copyFile(src, dst string) error {
+	sourceFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	destFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+
+	_, err = io.Copy(destFile, sourceFile)
+	if err == nil {
+		sourceInfo, err := os.Stat(src)
+		if err != nil {
+			err = os.Chmod(dst, sourceInfo.Mode())
+		}
+
+	}
+	return err
+}
 
 var (
 	kernel32           = syscall.NewLazyDLL("kernel32.dll")

@@ -11,6 +11,8 @@ const (
 	is_windows = false
 )
 
+func RunWinCommands(args []string) {}
+
 func InitTerminal() {}
 
 type TerminalState struct {
