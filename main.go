@@ -112,7 +112,6 @@ func (state *State) HandleAutocomplete(buffer []rune, cursor *int) []rune {
 		}
 
 		searchPath := lastArgUnescaped.String()
-		// Resolve tilde to actual home directory for OS lookup
 		resolvedSearchPath := UnformatPathIfInHome(searchPath)
 
 		dir := "."
@@ -125,7 +124,6 @@ func (state *State) HandleAutocomplete(buffer []rune, cursor *int) []rune {
 			} else {
 				dir = resolvedSearchPath[:lastSlash]
 			}
-			// Use original searchPath to find where the filename prefix starts
 			lastSlashInOriginal := strings.LastIndex(searchPath, "/")
 			prefix = searchPath[lastSlashInOriginal+1:]
 		} else if strings.HasPrefix(searchPath, "~") {
@@ -265,89 +263,98 @@ func readRawInput(state *State, promptStr string) string {
 	cursor := 0
 	historyIdx := len(state.history)
 
+	b := make([]byte, 1024)
 	for {
-		b := make([]byte, 3)
 		n, _ := os.Stdin.Read(b)
 		if n == 0 {
 			continue
 		}
 
-		char := b[0]
+		needsRefresh := false
 
-		if char != 9 {
-			state.lastWasTab = false
-		}
+		for i := 0; i < n; i++ {
+			char := b[i]
 
-		switch char {
-		case 13, 10: // Enter
-			input := strings.TrimSpace(string(buffer))
-			if input != "" && (len(state.history) == 0 || state.history[len(state.history)-1] != input) {
-				state.history = append(state.history, input)
-			}
-			fmt.Print("\r\n")
-			return input
-
-		case 127, 8: // Backspace
-			if cursor > 0 {
-				buffer = append(buffer[:cursor-1], buffer[cursor:]...)
-				cursor--
-				state.RefreshLine(promptStr, buffer, cursor)
+			if char != 9 {
+				state.lastWasTab = false
 			}
 
-		case 9: // Tab
-			buffer = state.HandleAutocomplete(buffer, &cursor)
-			state.RefreshLine(promptStr, buffer, cursor)
-			state.lastWasTab = true
+			switch char {
+			case 13, 10: // Enter
+				input := strings.TrimSpace(string(buffer))
+				if input != "" && (len(state.history) == 0 || state.history[len(state.history)-1] != input) {
+					state.history = append(state.history, input)
+				}
+				fmt.Print("\r\n")
+				return input
 
-		case 27: // Arrows
-			if n > 2 && b[1] == 91 {
-				switch b[2] {
-				case 65: // Up
-					if historyIdx > 0 {
-						historyIdx--
-						buffer = []rune(state.history[historyIdx])
-						cursor = len(buffer)
-						state.RefreshLine(promptStr, buffer, cursor)
+			case 127, 8: // Backspace
+				if cursor > 0 {
+					buffer = append(buffer[:cursor-1], buffer[cursor:]...)
+					cursor--
+					needsRefresh = true
+				}
+
+			case 9: // Tab
+				buffer = state.HandleAutocomplete(buffer, &cursor)
+				needsRefresh = true
+				state.lastWasTab = true
+
+			case 27: // Arrows
+				if i+2 < n && b[i+1] == 91 {
+					switch b[i+2] {
+					case 65: // Up
+						if historyIdx > 0 {
+							historyIdx--
+							buffer = []rune(state.history[historyIdx])
+							cursor = len(buffer)
+							needsRefresh = true
+						}
+					case 66: // Down
+						if historyIdx < len(state.history)-1 {
+							historyIdx++
+							buffer = []rune(state.history[historyIdx])
+							cursor = len(buffer)
+							needsRefresh = true
+						} else if historyIdx == len(state.history)-1 {
+							historyIdx = len(state.history)
+							buffer = []rune("")
+							cursor = 0
+							needsRefresh = true
+						}
+					case 68: // Left
+						if cursor > 0 {
+							cursor--
+							needsRefresh = true
+						}
+					case 67: // Right
+						if cursor < len(buffer) {
+							cursor++
+							needsRefresh = true
+						}
 					}
-				case 66: // Down
-					if historyIdx < len(state.history)-1 {
-						historyIdx++
-						buffer = []rune(state.history[historyIdx])
-						cursor = len(buffer)
-						state.RefreshLine(promptStr, buffer, cursor)
-					} else if historyIdx == len(state.history)-1 {
-						historyIdx = len(state.history)
-						buffer = []rune("")
-						cursor = 0
-						state.RefreshLine(promptStr, buffer, cursor)
-					}
-				case 68: // Left
-					if cursor > 0 {
-						cursor--
-						state.RefreshLine(promptStr, buffer, cursor)
-					}
-				case 67: // Right
-					if cursor < len(buffer) {
-						cursor++
-						state.RefreshLine(promptStr, buffer, cursor)
-					}
+					i += 2
+				}
+
+			case 3: // Ctrl+C
+				fmt.Print("^C\r\n")
+				return ""
+
+			case 4: // Ctrl+D
+				return "exit"
+
+			default:
+				if char >= 32 && char <= 126 {
+					charRune := rune(char)
+					buffer = append(buffer[:cursor], append([]rune{charRune}, buffer[cursor:]...)...)
+					cursor++
+					needsRefresh = true
 				}
 			}
+		}
 
-		case 3: // Ctrl+C
-			fmt.Print("^C\r\n")
-			return ""
-
-		case 4: // Ctrl+D
-			return "exit"
-
-		default:
-			if char >= 32 && char <= 126 {
-				charRune := rune(char)
-				buffer = append(buffer[:cursor], append([]rune{charRune}, buffer[cursor:]...)...)
-				cursor++
-				state.RefreshLine(promptStr, buffer, cursor)
-			}
+		if needsRefresh {
+			state.RefreshLine(promptStr, buffer, cursor)
 		}
 	}
 }
@@ -498,6 +505,8 @@ func Run(state *State, cmdArgs []string, w io.Writer) {
 }
 
 func main() {
+	InitTerminal()
+
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
