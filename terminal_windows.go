@@ -14,6 +14,10 @@ const (
 	ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004
 )
 
+const (
+	is_windows = true
+)
+
 var (
 	kernel32           = syscall.NewLazyDLL("kernel32.dll")
 	procGetConsoleMode = kernel32.NewProc("GetConsoleMode")

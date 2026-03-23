@@ -7,6 +7,10 @@ import (
 	"unsafe"
 )
 
+const (
+	is_windows = false
+)
+
 func InitTerminal() {}
 
 type TerminalState struct {
