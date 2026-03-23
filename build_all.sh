@@ -12,6 +12,7 @@ targets=(
     "darwin/arm64"
     "windows/amd64"
     "windows/arm64"
+    "windows/386"
 )
 
 echo "Starting builds..."
