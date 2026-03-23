@@ -21,7 +21,7 @@ const (
 	is_windows = true
 )
 
-func RunWinCommands(cmdArgs []string) {
+func RunWinCommands(cmdArgs []string) bool {
 	if cmdArgs[0] == "mkdir" {
 		if len(cmdArgs) > 1 {
 			err := os.Mkdir(cmdArgs[1], os.ModeDir)
@@ -29,7 +29,7 @@ func RunWinCommands(cmdArgs []string) {
 				fmt.Printf("%s%v%s", Red, err, Reset)
 			}
 		}
-		return
+		return true
 	}
 	if cmdArgs[0] == "clear" {
 		cmd := exec.Command("cmd", "/c", "cls")
@@ -38,7 +38,7 @@ func RunWinCommands(cmdArgs []string) {
 		if err != nil {
 			fmt.Printf("%s%v%s", Red, err, Reset)
 		}
-		return
+		return true
 	}
 	if cmdArgs[0] == "echo" {
 		if len(cmdArgs) > 1 {
@@ -47,7 +47,7 @@ func RunWinCommands(cmdArgs []string) {
 			}
 			fmt.Println()
 		}
-		return
+		return true
 	}
 	if cmdArgs[0] == "cp" {
 		if len(cmdArgs) > 2 {
@@ -56,7 +56,7 @@ func RunWinCommands(cmdArgs []string) {
 				fmt.Printf("%s%v%s", Red, err, Reset)
 			}
 		}
-		return
+		return true
 	}
 	if cmdArgs[0] == "mv" {
 		if len(cmdArgs) > 2 {
@@ -65,7 +65,7 @@ func RunWinCommands(cmdArgs []string) {
 				fmt.Printf("%s%v%s", Red, err, Reset)
 			}
 		}
-		return
+		return true
 	}
 	if cmdArgs[0] == "rm" {
 		if len(cmdArgs) > 1 {
@@ -74,8 +74,10 @@ func RunWinCommands(cmdArgs []string) {
 				fmt.Printf("%s%v%s", Red, err, Reset)
 			}
 		}
-		return
+		return true
 	}
+
+	return false
 }
 
 func copyDir(src, dst string) error {

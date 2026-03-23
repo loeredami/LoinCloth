@@ -466,7 +466,9 @@ func Run(state *State, cmdArgs []string, w io.Writer) {
 		}
 
 		if is_windows {
-			RunWinCommands(cmdArgs)
+			if RunWinCommands(cmdArgs) {
+				return
+			}
 		}
 
 		c := exec.Command(cmdArgs[0], cmdArgs[1:]...)

@@ -11,7 +11,7 @@ const (
 	is_windows = false
 )
 
-func RunWinCommands(args []string) {}
+func RunWinCommands(args []string) bool { return false }
 
 func InitTerminal() {}
 
