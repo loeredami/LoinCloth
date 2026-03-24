@@ -201,6 +201,7 @@ When launching into version Pre-Release 1.2 or newer, you will have created a "d
 
 Edit "/path/to/user/config/.loin/default.cloth", on linux this for example is:
 `~/.config/.loin/default.cloth`
+and for the sudo user `/root/.config/.loin/default.cloth`
 
 In there you can type in some commands that should run every time you create an new shell, changes only apply when starting a new shell instance.
 
