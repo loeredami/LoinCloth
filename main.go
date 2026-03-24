@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -406,7 +407,7 @@ func processTokens(state *State, tokenSlice []Token) []string {
 		}
 
 		token.Value.IfPresent(func(val string) {
-			if token.Type == Path || token.Type == String {
+			if token.Type == Path {
 				val = UnformatPathIfInHome(val)
 			}
 
@@ -502,6 +503,34 @@ func Run(state *State, cmdArgs []string, w io.Writer) {
 	}
 }
 
+func ReadConfiguration(state *State) {
+	path, err := os.UserConfigDir()
+	if err != nil {
+		fmt.Printf("Could not find User config directory.")
+		return
+	}
+
+	path = filepath.Join(path, ".loin")
+
+	os.Mkdir(path, os.ModePerm)
+
+	f, _ := os.OpenFile(filepath.Join(path, "default.cloth"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f.Close()
+
+	data, err := os.ReadFile(filepath.Join(path, "default.cloth"))
+
+	if err != nil {
+		fmt.Printf("Error reading configuration: %v", err)
+		return
+	}
+
+	lines := strings.Split(string(data), "\n")
+
+	for _, line := range lines {
+		RunString(state, line)
+	}
+}
+
 func main() {
 	InitTerminal()
 
@@ -519,6 +548,8 @@ func main() {
 		path:   start_dir,
 		scopes: ungo.NewLinkedList[*Scope](),
 	})
+
+	ReadConfiguration(state)
 
 	duration := ungo.None[time.Duration]()
 

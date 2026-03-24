@@ -194,3 +194,46 @@ No problem, just throw it in some `{}`!
 »
 ```
 This example is useless, but it gets the point across.
+
+
+# Configuration
+When launching into version Pre-Release 1.2 or newer, you will have created a "default.cloth", in your OS's user configuration folder.
+
+Edit "/path/to/user/config/.loin/default.cloth", on linux this for example is:
+`~/.config/.loin/default.cloth`
+
+In there you can type in some commands that should run every time you create an new shell, changes only apply when starting a new shell instance.
+
+Here are some commands you can use:
+`!local <string field> <string>` - Let's you replace a string.
+
+`!local prompt ">"` changes the prompt field to be ">"
+
+other strings:
+  * `sudo-prompt`
+  * `scope-sign`
+
+`!color <color field> <int>` - Lets' you replace a color
+`!color input 32` - Set's your input text to Green.
+
+color fields:
+  * `input`
+  * `err`
+  * `ls-dir`
+  * `ls-sym-link`
+  * `ls-exec`
+  * `sudo-prompt`
+  * `prompt`
+  * `idx`
+  * `cur-ws`
+  * `cur-dir`
+  * `cur-dir-indic`
+  * `git-branch`
+  * `time`
+  * `time-prefix`
+  * `scope`
+  * `path`
+
+  
+`!disable-colors` - Disables color rendering, good for very old machines.
+`!enable-colors` - Enables color rendering, on by default.
