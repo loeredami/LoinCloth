@@ -326,15 +326,15 @@ func (state *State) highlightInput(buffer []rune) string {
 				case Identifier:
 					color = state.GetColor(state.config.InputCol)
 				case String:
-					color = state.GetColor(state.config.LSExecCol)
+					color = state.GetColor(state.config.InputStringCol)
 				case Number:
-					color = state.GetColor(state.config.TimeCol)
+					color = state.GetColor(state.config.InputNumCol)
 				case Path:
-					color = state.GetColor(state.config.PathCol)
+					color = state.GetColor(state.config.InputPathCol)
 				case Varname:
-					color = state.GetColor(state.config.GitBranchCol)
+					color = state.GetColor(state.config.InputVarCol)
 				case OpenBrace, CloseBrace:
-					color = state.GetColor(state.config.IdxCol)
+					color = state.GetColor(state.config.InputBraceCol)
 				}
 
 				highlighted.WriteString(color + val + state.Reset())
