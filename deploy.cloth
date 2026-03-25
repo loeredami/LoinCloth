@@ -1,0 +1,5 @@
+!new s deploy
+!set build-all "bash build_all.sh"
+!set build "go build ."
+!set run "go run ."
+## !set test "go test" ## ## Haven't implemented tests yet. ##
