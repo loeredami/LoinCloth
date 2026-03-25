@@ -281,3 +281,58 @@ func renderPromptInfo(state *State, time_taken ungo.Optional[time.Duration]) str
 	fmt.Print(promptStr)
 	return promptStr
 }
+
+func (state *State) highlightInput(buffer []rune) string {
+	if !state.config.ColorMode || len(buffer) == 0 {
+		return string(buffer)
+	}
+
+	raw := string(buffer)
+	tokens := Lex(raw)
+	var highlighted strings.Builder
+
+	currentIdx := 0
+
+	tokens.ForEach(func(idx int, t Token) {
+		if t.Type == EndOfInput {
+			return
+		}
+
+		t.Value.IfPresent(func(val string) {
+			foundIdx := strings.Index(raw[currentIdx:], val)
+
+			if foundIdx != -1 {
+				foundIdx += currentIdx
+
+				if foundIdx > currentIdx {
+					highlighted.WriteString(state.Reset() + raw[currentIdx:foundIdx] + state.Reset())
+				}
+
+				color := state.Reset()
+				switch t.Type {
+				case Identifier:
+					color = state.GetColor(state.config.LSNormalCol)
+				case String:
+					color = state.GetColor(state.config.LSExecCol)
+				case Number:
+					color = state.GetColor(state.config.TimeCol)
+				case Path:
+					color = state.GetColor(state.config.PathColor)
+				case Varname:
+					color = state.GetColor(state.config.GitBranchCol)
+				case OpenBrace, CloseBrace:
+					color = state.GetColor(state.config.IdxCol)
+				}
+
+				highlighted.WriteString(color + val + state.Reset())
+				currentIdx = foundIdx + len(val)
+			}
+		})
+	})
+
+	if currentIdx < len(raw) {
+		highlighted.WriteString(state.Reset() + raw[currentIdx:] + state.Reset())
+	}
+
+	return highlighted.String()
+}

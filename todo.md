@@ -1,5 +1,5 @@
 # TODO
-* Add syntax based input highlighting
+* Add color codes for input highlighting
 * Auto closing braces
 
 # 1.3
