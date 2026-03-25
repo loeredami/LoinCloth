@@ -68,6 +68,8 @@ func (state *State) RefreshLine(prompt string, buffer []rune, cursor int) {
 		termWidth = 80
 	}
 
+	highlightedBuffer := state.highlightInput(buffer)
+
 	totalLen := uint(len(prompt) + len(buffer))
 	rowCount := (totalLen + (termWidth) - 1) / termWidth
 
@@ -79,7 +81,7 @@ func (state *State) RefreshLine(prompt string, buffer []rune, cursor int) {
 
 	fmt.Print("\033[J")
 
-	fmt.Printf("%s%s", prompt, string(buffer))
+	fmt.Printf("%s%s", prompt, highlightedBuffer)
 
 	if cursor < len(buffer) {
 		targetPos := len(prompt) + cursor
