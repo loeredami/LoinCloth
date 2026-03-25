@@ -242,7 +242,7 @@ func renderPromptInfo(state *State, time_taken ungo.Optional[time.Duration]) str
 
 	state.workspaces.Get(state.cur_workspace).IfPresent(func(w *Workspace) {
 		w.scopes.ForEach(func(idx int, s *Scope) {
-			fmt.Printf("%s%s%s%s", state.config.ScopeSign, state.GetColor(state.config.ScopeSign), s.name, state.Reset())
+			fmt.Printf("%s%s%s%s", state.config.ScopeSign, state.GetColor(state.config.ScopeColor), s.name, state.Reset())
 		})
 	})
 
