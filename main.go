@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	terminal "github.com/wayneashleyberry/terminal-dimensions"
+
 	"github.com/loeredami/ungo"
 )
 
@@ -61,10 +63,32 @@ type State struct {
 }
 
 func (state *State) RefreshLine(prompt string, buffer []rune, cursor int) {
-	fmt.Printf("\r\033[K%s%s", prompt, string(buffer))
+	termWidth, err := terminal.Width()
+	if termWidth <= 0 || err != nil {
+		termWidth = 80
+	}
+
+	totalLen := uint(len(prompt) + len(buffer))
+	rowCount := (totalLen + (termWidth) - 1) / termWidth
+
+	fmt.Print("\r")
+
+	if rowCount > 1 {
+		fmt.Printf("\033[%dA", rowCount-1)
+	}
+
+	fmt.Print("\033[J")
+
+	fmt.Printf("%s%s", prompt, string(buffer))
+
 	if cursor < len(buffer) {
-		moveBack := len(buffer) - cursor
-		fmt.Printf("\033[%dD", moveBack)
+		targetPos := len(prompt) + cursor
+		currentPos := len(prompt) + len(buffer)
+
+		moveBack := currentPos - targetPos
+		if moveBack > 0 {
+			fmt.Printf("\033[%dD", moveBack)
+		}
 	}
 }
 
