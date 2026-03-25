@@ -25,9 +25,14 @@ type Theme struct {
 	GitBranchCol   string
 	TimeCol        string
 	TimePrefixCol  string
-	ScopeColor     string
-	InputColor     string
-	PathColor      string
+	ScopeCol       string
+	InputCol       string
+	PathCol        string
+	InputStringCol string
+	InputNumCol    string
+	InputPathCol   string
+	InputVarCol    string
+	InputBraceCol  string
 }
 
 type Configuration struct {
@@ -55,9 +60,14 @@ func DefaultConfiguration() Configuration {
 			GitBranchCol:   Green,
 			TimeCol:        Yellow,
 			TimePrefixCol:  Cyan,
-			ScopeColor:     Yellow,
-			InputColor:     Cyan,
-			PathColor:      Blue,
+			ScopeCol:       Yellow,
+			InputCol:       Cyan,
+			PathCol:        Blue,
+			InputStringCol: Green,
+			InputNumCol:    Blue,
+			InputPathCol:   Yellow,
+			InputVarCol:    Magenta,
+			InputBraceCol:  Blue,
 		},
 		SudoPrompt: "#!",
 		Prompt:     "»",

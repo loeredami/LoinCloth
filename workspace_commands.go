@@ -281,13 +281,28 @@ func HandleStateCommands(state *State, command []string) ungo.Optional[error] {
 			state.config.TimePrefixCol = color
 			return ungo.None[error]()
 		case "scope":
-			state.config.ScopeColor = color
+			state.config.ScopeCol = color
 			return ungo.None[error]()
 		case "input":
-			state.config.InputColor = color
+			state.config.InputCol = color
 			return ungo.None[error]()
 		case "path":
-			state.config.PathColor = color
+			state.config.PathCol = color
+			return ungo.None[error]()
+		case "input-string":
+			state.config.InputStringCol = color
+			return ungo.None[error]()
+		case "input-num":
+			state.config.InputNumCol = color
+			return ungo.None[error]()
+		case "input-path":
+			state.config.InputPathCol = color
+			return ungo.None[error]()
+		case "input-var":
+			state.config.InputVarCol = color
+			return ungo.None[error]()
+		case "input-brace":
+			state.config.InputBraceCol = color
 			return ungo.None[error]()
 		}
 
