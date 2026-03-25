@@ -243,7 +243,7 @@ func renderPromptInfo(state *State, time_taken ungo.Optional[time.Duration]) str
 		if state.workspaces.Size() != 1 {
 			fmt.Printf("[%s%d%s] ", state.GetColor(state.config.IdxCol), idx, state.Reset())
 		}
-		fmt.Printf("%s%s%s", state.GetColor(state.config.PathColor), ReformatPathIfInHome(ws.path), state.Reset())
+		fmt.Printf("%s%s%s", state.GetColor(state.config.PathCol), ReformatPathIfInHome(ws.path), state.Reset())
 
 		if state.workspaces.Size() != 1 {
 			if idx == state.cur_workspace {
@@ -273,11 +273,11 @@ func renderPromptInfo(state *State, time_taken ungo.Optional[time.Duration]) str
 
 	state.workspaces.Get(state.cur_workspace).IfPresent(func(w *Workspace) {
 		w.scopes.ForEach(func(idx int, s *Scope) {
-			fmt.Printf("%s%s%s%s", state.config.ScopeSign, state.GetColor(state.config.ScopeColor), s.name, state.Reset())
+			fmt.Printf("%s%s%s%s", state.config.ScopeSign, state.GetColor(state.config.ScopeCol), s.name, state.Reset())
 		})
 	})
 
-	promptStr := fmt.Sprintf("%s%s ", in_sign, state.GetColor(state.config.InputColor))
+	promptStr := fmt.Sprintf("%s%s ", in_sign, state.GetColor(state.config.InputCol))
 	fmt.Print(promptStr)
 	return promptStr
 }
@@ -311,13 +311,13 @@ func (state *State) highlightInput(buffer []rune) string {
 				color := state.Reset()
 				switch t.Type {
 				case Identifier:
-					color = state.GetColor(state.config.LSNormalCol)
+					color = state.GetColor(state.config.InputCol)
 				case String:
 					color = state.GetColor(state.config.LSExecCol)
 				case Number:
 					color = state.GetColor(state.config.TimeCol)
 				case Path:
-					color = state.GetColor(state.config.PathColor)
+					color = state.GetColor(state.config.PathCol)
 				case Varname:
 					color = state.GetColor(state.config.GitBranchCol)
 				case OpenBrace, CloseBrace:

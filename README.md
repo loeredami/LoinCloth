@@ -234,6 +234,11 @@ color fields:
   * `time-prefix`
   * `scope`
   * `path`
+  * `input-string`
+  * `input-num`
+  * `input-path`
+  * `input-var`
+  * `input-brace`
 
   
 `!disable-colors` - Disables color rendering, good for very old machines.
