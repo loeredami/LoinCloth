@@ -1,5 +1,4 @@
 # TODO
-* Auto closing braces
 
 # 1.3
 * Ghost input, matching previous commands, or known variables/commands

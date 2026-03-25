@@ -221,6 +221,19 @@ func readRawInput(state *State, promptStr string) string {
 			default:
 				if char >= 32 && char <= 126 {
 					charRune := rune(char)
+
+					if charRune == '{' {
+						shouldAddClosing := cursor == len(buffer) || buffer[cursor] != '}'
+
+						if shouldAddClosing {
+							buffer = append(buffer[:cursor], append([]rune{'{', '}'}, buffer[cursor:]...)...)
+							cursor++
+							needsRefresh = true
+							break
+						}
+					}
+
+					// Standard insertion for all other characters
 					buffer = append(buffer[:cursor], append([]rune{charRune}, buffer[cursor:]...)...)
 					cursor++
 					needsRefresh = true
