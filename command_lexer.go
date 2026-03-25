@@ -193,14 +193,27 @@ func Lex(input string) *ungo.LinkedList[Token] {
 
 			// skip comments
 			func(state *LexState) *LexState {
-				if len(state.input) > 2 && state.input[0] == '#' && state.input[1] == '#' {
-					state.input = state.input[1:]
-					state.input = state.input[1:]
-					for len(state.input) > 2 && !(state.input[0] == '#' && state.input[1] == '#') {
+				if state.IsDone() {
+					return state
+				}
+
+				if len(state.input) >= 2 && state.input[0] == '#' && state.input[1] == '#' {
+					state.input = state.input[2:] // Consume the ##
+
+					for len(state.input) >= 2 {
+						if state.input[0] == '#' && state.input[1] == '#' {
+							state.input = state.input[2:] // Consume the closing ##
+							return state
+						}
 						state.input = state.input[1:]
 					}
 
-					state.input = state.input[1:]
+					state.input = ""
+					return state
+				}
+
+				if state.input[0] == '#' {
+					state.tokens.Add(Token{Symbol, ungo.Some("#")})
 					state.input = state.input[1:]
 				}
 
