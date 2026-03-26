@@ -388,6 +388,42 @@ func HandleStateCommands(state *State, command []string) ungo.Optional[error] {
 		state.ResetConfig()
 		return ungo.None[error]()
 
+	case "!snapshot":
+		if len(command) < 2 {
+			return ungo.Some(fmt.Errorf("expected .cloth file"))
+		}
+		scopes := state.workspaces.Get(state.cur_workspace).Value().scopes
+
+		scope := scopes.Get(scopes.Size() - 1)
+
+		failure := ungo.None[error]()
+
+		scope.IfPresent(func(s *Scope) {
+			err := os.WriteFile(command[1], s.Encode(), 0644)
+			if err != nil {
+				failure = ungo.Some(err)
+			}
+		})
+
+		scope.IfAbsent(func(s **Scope) {
+			failure = ungo.Some(fmt.Errorf("could not find any open scope"))
+		})
+
+		return failure
+
+	case "!snapshot-ws":
+		if len(command) < 2 {
+			return ungo.Some(fmt.Errorf("expected .cloth file"))
+		}
+		ws := state.workspaces.Get(state.cur_workspace).Value()
+
+		failure := ungo.None[error]()
+		err := os.WriteFile(command[1], ws.Encode(), 0644)
+		if err != nil {
+			failure = ungo.Some(err)
+		}
+		return failure
+
 	default:
 		return ungo.Some(fmt.Errorf("unrecognised internal command: %s", command[0]))
 	}

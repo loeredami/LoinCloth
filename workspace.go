@@ -37,6 +37,8 @@ type State struct {
 
 func (ws *Workspace) Encode() []byte {
 	data := make([]byte, 0)
+	data = append(data, []byte(fmt.Sprintln("cd", strconv.Quote(ws.path)))...)
+	data = append(data, []byte(fmt.Sprintln("!label", strconv.Quote(ws.name)))...)
 	ws.scopes.ForEach(func(idx int, s *Scope) {
 		data = append(data, s.Encode()...)
 	})

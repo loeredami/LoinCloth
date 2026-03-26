@@ -1,5 +1,0 @@
-!new s go-builder
-!set run "go run ."
-!set buid "go build ."
-!set GOPROXY direct
-!set update "go get -u"
