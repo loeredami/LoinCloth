@@ -304,6 +304,9 @@ func HandleStateCommands(state *State, command []string) ungo.Optional[error] {
 		case "input-brace":
 			state.config.InputBraceCol = color
 			return ungo.None[error]()
+		case "ghost":
+			state.config.GhostCol = color
+			return ungo.None[error]()
 		}
 
 		return ungo.Some(fmt.Errorf("cound not find color field '%s'", command[1]))

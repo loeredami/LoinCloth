@@ -28,6 +28,9 @@ type State struct {
 	lastWasTab          bool
 	lastAddedLen        int
 
+	ghostSuggestion string
+	lastRowCount    int
+
 	config Configuration
 }
 

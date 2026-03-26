@@ -239,6 +239,7 @@ color fields:
   * `input-path`
   * `input-var`
   * `input-brace`
+  * `ghost`
 
   
 `!disable-colors` - Disables color rendering, good for very old machines.

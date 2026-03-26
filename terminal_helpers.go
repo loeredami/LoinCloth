@@ -67,6 +67,7 @@ func readRawInput(state *State, promptStr string) string {
 				if cursor > 0 {
 					buffer = append(buffer[:cursor-1], buffer[cursor:]...)
 					cursor--
+					state.updateGhostSuggestion(buffer) // Update even if becoming empty
 					needsRefresh = true
 				}
 
@@ -142,16 +143,15 @@ func readRawInput(state *State, promptStr string) string {
 							i += 2
 						}
 						needsRefresh = true
-					case 'C': // Right
-						if isCtrl && i+5 < n {
-							cursor = state.findWordBoundaryRight(buffer, cursor)
-							i += 5
-						} else {
-							if cursor < len(buffer) {
-								cursor++
-							}
-							i += 2
+					case 'C': // Right Arrow
+						if cursor < len(buffer) {
+							cursor++
+						} else if state.ghostSuggestion != "" {
+							buffer = append(buffer, []rune(state.ghostSuggestion)...)
+							cursor = len(buffer)
+							state.ghostSuggestion = ""
 						}
+						i += 2
 						needsRefresh = true
 					case '5': // Ctrl + Arrows Alternate (\033[5C, \033[5D)
 						if i+3 < n {
@@ -236,6 +236,7 @@ func readRawInput(state *State, promptStr string) string {
 					// Standard insertion for all other characters
 					buffer = append(buffer[:cursor], append([]rune{charRune}, buffer[cursor:]...)...)
 					cursor++
+					state.updateGhostSuggestion(buffer)
 					needsRefresh = true
 				}
 			}
@@ -348,4 +349,53 @@ func (state *State) highlightInput(buffer []rune) string {
 	}
 
 	return highlighted.String()
+}
+
+func (state *State) updateGhostSuggestion(buffer []rune) {
+	state.ghostSuggestion = ""
+	if len(buffer) == 0 {
+		return
+	}
+
+	line := string(buffer)
+
+	for i := len(state.history) - 1; i >= 0; i-- {
+		if strings.HasPrefix(state.history[i], line) && state.history[i] != line {
+			state.ghostSuggestion = state.history[i][len(line):]
+			return
+		}
+	}
+
+	lastDollar := strings.LastIndex(line, "$")
+	if lastDollar != -1 {
+		suffix := line[lastDollar+1:]
+		if !strings.ContainsAny(suffix, " \t\n\r\"'{}/\\") {
+			varNamePart := suffix
+			var foundMatch string
+
+			state.workspaces.Get(state.cur_workspace).IfPresent(func(ws *Workspace) {
+				ws.scopes.ForEach(func(idx int, sc *Scope) {
+					sc.overrides.ForEach(func(key, value string) {
+						if strings.HasPrefix(key, varNamePart) && key != varNamePart {
+							foundMatch = key[len(varNamePart):]
+						}
+					})
+				})
+			})
+
+			if foundMatch == "" {
+				for _, e := range os.Environ() {
+					pair := strings.SplitN(e, "=", 2)
+					if strings.HasPrefix(pair[0], varNamePart) && pair[0] != varNamePart {
+						foundMatch = pair[0][len(varNamePart):]
+						break
+					}
+				}
+			}
+
+			if foundMatch != "" {
+				state.ghostSuggestion = foundMatch
+			}
+		}
+	}
 }

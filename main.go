@@ -46,28 +46,37 @@ func (state *State) RefreshLine(prompt string, buffer []rune, cursor int) {
 
 	highlightedBuffer := state.highlightInput(buffer)
 
-	totalLen := uint(len(prompt) + len(buffer))
-	rowCount := (totalLen + (termWidth) - 1) / termWidth
-
-	fmt.Print("\r")
-
-	if rowCount > 1 {
-		fmt.Printf("\033[%dA", rowCount-1)
+	displayText := string(buffer)
+	if cursor == len(buffer) {
+		displayText += state.ghostSuggestion
 	}
 
-	fmt.Print("\033[J")
+	totalLen := uint(len(prompt) + len(displayText))
+	rowCount := (totalLen + (termWidth) - 1) / termWidth
+
+	if state.lastRowCount > 1 {
+		fmt.Printf("\033[%dA", state.lastRowCount-1)
+	}
+	fmt.Print("\r\033[J")
 
 	fmt.Printf("%s%s", prompt, highlightedBuffer)
 
-	if cursor < len(buffer) {
-		targetPos := len(prompt) + cursor
-		currentPos := len(prompt) + len(buffer)
-
-		moveBack := currentPos - targetPos
-		if moveBack > 0 {
-			fmt.Printf("\033[%dD", moveBack)
-		}
+	if cursor == len(buffer) && state.ghostSuggestion != "" {
+		fmt.Printf("%s%s%s", state.GetColor(state.config.GhostCol), state.ghostSuggestion, state.Reset())
 	}
+
+	targetPos := len(prompt) + cursor
+	currentPos := len(prompt) + len(buffer)
+	if cursor == len(buffer) {
+		currentPos += len(state.ghostSuggestion)
+	}
+
+	moveBack := currentPos - targetPos
+	if moveBack > 0 {
+		fmt.Printf("\033[%dD", moveBack)
+	}
+
+	state.lastRowCount = int(rowCount)
 }
 
 func (state *State) HandleAutocomplete(buffer []rune, cursor *int) []rune {

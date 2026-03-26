@@ -33,6 +33,7 @@ type Theme struct {
 	InputPathCol   string
 	InputVarCol    string
 	InputBraceCol  string
+	GhostCol       string
 }
 
 type Configuration struct {
@@ -68,6 +69,7 @@ func DefaultConfiguration() Configuration {
 			InputPathCol:   Yellow,
 			InputVarCol:    Magenta,
 			InputBraceCol:  Blue,
+			GhostCol:       Gray,
 		},
 		SudoPrompt: "#!",
 		Prompt:     "»",
