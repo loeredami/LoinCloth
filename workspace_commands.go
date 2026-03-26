@@ -335,6 +335,10 @@ func HandleStateCommands(state *State, command []string) ungo.Optional[error] {
 		state.config.ColorMode = false
 		return ungo.None[error]()
 
+	case "!reset":
+		state.ResetConfig()
+		return ungo.None[error]()
+
 	default:
 		return ungo.Some(fmt.Errorf("unrecognised internal command: %s", command[0]))
 	}

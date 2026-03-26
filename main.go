@@ -402,7 +402,7 @@ func main() {
 		scopes: ungo.NewLinkedList[*Scope](),
 	})
 
-	ReadConfiguration(state)
+	state.ResetConfig()
 
 	duration := ungo.None[time.Duration]()
 

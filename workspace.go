@@ -50,3 +50,8 @@ func (scope *Scope) Encode() []byte {
 
 	return data
 }
+
+func (s *State) ResetConfig() {
+	s.config = DefaultConfiguration()
+	ReadConfiguration(s)
+}

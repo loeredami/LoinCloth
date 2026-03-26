@@ -243,3 +243,5 @@ color fields:
   
 `!disable-colors` - Disables color rendering, good for very old machines.
 `!enable-colors` - Enables color rendering, on by default.
+
+`!reset` - Reloads your default.cloth, in your config folder, and resets your theme.
