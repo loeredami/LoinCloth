@@ -195,6 +195,35 @@ No problem, just throw it in some `{}`!
 ```
 This example is useless, but it gets the point across.
 
+## Snapshots
+
+Like a specific scope or workspace configuration?
+Write it to a file!
+
+```sh
+»!snapshot favorite-scope.cloth ## saves a scope to a wearable cloth file ##
+»!snapshot-ws favorite-workspace.cloth ## saves a workspace to a wearable cloth file ##
+```
+
+## Workspace utility
+
+If you need another workspace with the configuration of another workspace use the clone command.
+
+```sh
+»!clone 0 ## clones the workspace at index 0 ##
+```
+
+If you want to give a workspace a name to keep track of it, `!switch` to it, and use.
+
+```sh
+»!label "My Favourite Workspace" ## This text will now show up next to this workspace ##
+```
+
+If you need to reload your `default.cloth` from your configuration folder just type:
+
+```sh
+»!reset ## Not to mix up with $reset, which references the default clear command on linux ##
+```
 
 # Configuration
 When launching into version Pre-Release 1.2 or newer, you will have created a "default.cloth", in your OS's user configuration folder.
