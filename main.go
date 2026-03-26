@@ -38,30 +38,6 @@ func UnformatPathIfInHome(path string) string {
 	return path
 }
 
-type Scope struct {
-	name      string
-	overrides *ungo.SmallMap[string, string]
-}
-
-type Workspace struct {
-	path   string
-	scopes *ungo.LinkedList[*Scope]
-}
-
-type State struct {
-	cur_workspace int
-	workspaces    *ungo.LinkedList[*Workspace]
-	history       []string
-	historyIndex  int
-
-	autoCompleteMatches []string
-	autoCompleteIndex   int
-	lastWasTab          bool
-	lastAddedLen        int
-
-	config Configuration
-}
-
 func (state *State) RefreshLine(prompt string, buffer []rune, cursor int) {
 	termWidth, err := terminal.Width()
 	if termWidth <= 0 || err != nil {
