@@ -78,7 +78,7 @@ func Lex(input string) *ungo.LinkedList[Token] {
 				}
 
 				r := state.input[0]
-				if r == '/' || r == '\\' || r == '~' || r == '.' {
+				if r == '/' || r == '\\' || r == '~' || r == '.' || r == '*' {
 					var builder strings.Builder
 					for !state.IsDone() {
 						curr := state.input[0]
@@ -90,7 +90,7 @@ func Lex(input string) *ungo.LinkedList[Token] {
 						}
 
 						if unicode.IsLetter(rune(curr)) || unicode.IsDigit(rune(curr)) ||
-							strings.ContainsRune("/\\._-~@:+", rune(curr)) {
+							strings.ContainsRune("/\\._-~@:+*", rune(curr)) {
 							builder.WriteByte(curr)
 							state.input = state.input[1:]
 						} else {
@@ -110,7 +110,7 @@ func Lex(input string) *ungo.LinkedList[Token] {
 				if state.IsDone() {
 					return state
 				}
-				blacklist := "#${}"
+				blacklist := "#${}*"
 				if strings.Contains(blacklist, string([]byte{state.input[0]})) {
 					return state
 				}

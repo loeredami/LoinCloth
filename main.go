@@ -271,6 +271,14 @@ func processTokens(state *State, tokenSlice []Token) []string {
 		token.Value.IfPresent(func(val string) {
 			if token.Type == Path {
 				val = UnformatPathIfInHome(val)
+
+				if strings.Contains(val, "*") {
+					matches, err := filepath.Glob(val)
+					if err == nil && len(matches) > 0 {
+						cmd = append(cmd, matches...)
+						return
+					}
+				}
 			}
 
 			if token.Type == Varname {
