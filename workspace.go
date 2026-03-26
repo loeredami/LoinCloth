@@ -33,7 +33,7 @@ type State struct {
 
 func (ws *Workspace) Encode() []byte {
 	data := make([]byte, 0)
-	ws.scope.ForEach(func(s *Scope) {
+	ws.scopes.ForEach(func(idx int, s *Scope) {
 		data = append(data, s.Encode()...)
 	})
 	return data
