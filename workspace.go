@@ -59,3 +59,30 @@ func (s *State) ResetConfig() {
 	s.config = DefaultConfiguration()
 	ReadConfiguration(s)
 }
+
+func (ws *Workspace) Clone() *Workspace {
+	nws := &Workspace{
+		name:   ws.name,
+		path:   ws.path,
+		scopes: ungo.NewLinkedList[*Scope](),
+	}
+
+	ws.scopes.ForEach(func(idx int, s *Scope) {
+		nws.scopes.Add(s.Clone())
+	})
+
+	return nws
+}
+
+func (s *Scope) Clone() *Scope {
+	scope := &Scope{
+		name:      s.name,
+		overrides: ungo.NewSmallMap[string, string](256),
+	}
+
+	s.overrides.ForEach(func(key, val string) {
+		scope.overrides.Set(key, val)
+	})
+
+	return scope
+}

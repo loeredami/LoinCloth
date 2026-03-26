@@ -183,6 +183,24 @@ func HandleStateCommands(state *State, command []string) ungo.Optional[error] {
 		state.workspaces.Remove(int(idx))
 		return ungo.None[error]()
 
+	case "!clone":
+		if len(command) < 2 {
+			return ungo.Some(fmt.Errorf("expected index of workspace"))
+		}
+
+		idx, err := strconv.ParseUint(command[1], 10, 64)
+
+		if err != nil {
+			return ungo.Some(fmt.Errorf("could not parse index: %v", err))
+		}
+
+		if idx >= uint64(state.workspaces.Size()) {
+			return ungo.Some(fmt.Errorf("workspace at %d does not exist.", idx))
+		}
+
+		state.workspaces.Add(state.workspaces.Get(int(idx)).Value().Clone())
+		return ungo.None[error]()
+
 	case "!drop":
 		if len(command) < 2 {
 			return ungo.Some(fmt.Errorf("expected name of scope"))
