@@ -12,10 +12,28 @@ import (
 
 func (state *State) findWordBoundaryLeft(buffer []rune, cursor int) int {
 	pos := cursor
+	// Skip trailing spaces
 	for pos > 0 && unicode.IsSpace(buffer[pos-1]) {
 		pos--
 	}
-	for pos > 0 && !unicode.IsSpace(buffer[pos-1]) {
+	if pos == 0 {
+		return 0
+	}
+
+	// Determine if we are starting on an alphanumeric character or punctuation
+	first := buffer[pos-1]
+	isAlnum := unicode.IsLetter(first) || unicode.IsDigit(first)
+
+	for pos > 0 {
+		r := buffer[pos-1]
+		if unicode.IsSpace(r) {
+			break
+		}
+		// If we switch from alphanumeric to punctuation (or vice versa), stop
+		currentIsAlnum := unicode.IsLetter(r) || unicode.IsDigit(r)
+		if currentIsAlnum != isAlnum {
+			break
+		}
 		pos--
 	}
 	return pos
@@ -24,10 +42,26 @@ func (state *State) findWordBoundaryLeft(buffer []rune, cursor int) int {
 func (state *State) findWordBoundaryRight(buffer []rune, cursor int) int {
 	pos := cursor
 	length := len(buffer)
+	// Skip leading spaces
 	for pos < length && unicode.IsSpace(buffer[pos]) {
 		pos++
 	}
-	for pos < length && !unicode.IsSpace(buffer[pos]) {
+	if pos >= length {
+		return length
+	}
+
+	first := buffer[pos]
+	isAlnum := unicode.IsLetter(first) || unicode.IsDigit(first)
+
+	for pos < length {
+		r := buffer[pos]
+		if unicode.IsSpace(r) {
+			break
+		}
+		currentIsAlnum := unicode.IsLetter(r) || unicode.IsDigit(r)
+		if currentIsAlnum != isAlnum {
+			break
+		}
 		pos++
 	}
 	return pos
@@ -67,7 +101,7 @@ func readRawInput(state *State, promptStr string) string {
 				if cursor > 0 {
 					buffer = append(buffer[:cursor-1], buffer[cursor:]...)
 					cursor--
-					state.updateGhostSuggestion(buffer) // Update even if becoming empty
+					state.updateGhostSuggestion(buffer)
 					needsRefresh = true
 				}
 
@@ -76,6 +110,7 @@ func readRawInput(state *State, promptStr string) string {
 					newPos := state.findWordBoundaryLeft(buffer, cursor)
 					buffer = append(buffer[:newPos], buffer[cursor:]...)
 					cursor = newPos
+					state.updateGhostSuggestion(buffer)
 					needsRefresh = true
 				}
 
@@ -190,8 +225,15 @@ func readRawInput(state *State, promptStr string) string {
 							}
 						}
 						needsRefresh = true
-					case '1': // Home / Modified Arrows
-						if isCtrl && i+5 < n {
+					case '1': // Home / Modified Arrows / Extended Ctrl+BS
+						// Handle specific long sequence \033[127;5~ if present
+						if i+7 < n && string(b[i+2:i+5]) == "127" && b[i+5] == ';' {
+							newPos := state.findWordBoundaryLeft(buffer, cursor)
+							buffer = append(buffer[:newPos], buffer[cursor:]...)
+							cursor = newPos
+							i += 7 // Skip to the end of the sequence
+							needsRefresh = true
+						} else if isCtrl && i+5 < n {
 							switch b[i+5] {
 							case 'C':
 								cursor = state.findWordBoundaryRight(buffer, cursor)
@@ -233,7 +275,6 @@ func readRawInput(state *State, promptStr string) string {
 						}
 					}
 
-					// Standard insertion for all other characters
 					buffer = append(buffer[:cursor], append([]rune{charRune}, buffer[cursor:]...)...)
 					cursor++
 					state.updateGhostSuggestion(buffer)
@@ -247,7 +288,6 @@ func readRawInput(state *State, promptStr string) string {
 		}
 	}
 }
-
 func renderPromptInfo(state *State, time_taken ungo.Optional[time.Duration]) string {
 	cur_dir, _ := os.Getwd()
 	admin := os.Getuid() == 0
