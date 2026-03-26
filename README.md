@@ -228,6 +228,9 @@ If you need to reload your `default.cloth` from your configuration folder just t
 »!reset ## Not to mix up with $reset, which references the default clear command on linux ##
 ```
 
+## Ghost Input
+Ghost input appears as you are typing commands or known variables, press the right arrow key to accept them.
+
 # Configuration
 When launching into version Pre-Release 1.2 or newer, you will have created a "default.cloth", in your OS's user configuration folder.
 
