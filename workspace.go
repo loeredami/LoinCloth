@@ -15,6 +15,7 @@ type Scope struct {
 type Workspace struct {
 	path   string
 	scopes *ungo.LinkedList[*Scope]
+	name   string
 }
 
 type State struct {

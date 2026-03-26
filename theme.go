@@ -11,29 +11,30 @@ const Gray = "\033[37m"
 const White = "\033[97m"
 
 type Theme struct {
-	ErrorCol       string
-	LSDirCol       string
-	LSSymLinkCol   string
-	LSExecCol      string
-	LSNormalCol    string
-	SudoPromptCol  string
-	PromptCol      string
-	IdxCol         string
-	CurWSCol       string
-	CurDirCol      string
-	CurDirIndicCol string
-	GitBranchCol   string
-	TimeCol        string
-	TimePrefixCol  string
-	ScopeCol       string
-	InputCol       string
-	PathCol        string
-	InputStringCol string
-	InputNumCol    string
-	InputPathCol   string
-	InputVarCol    string
-	InputBraceCol  string
-	GhostCol       string
+	ErrorCol         string
+	LSDirCol         string
+	LSSymLinkCol     string
+	LSExecCol        string
+	LSNormalCol      string
+	SudoPromptCol    string
+	PromptCol        string
+	IdxCol           string
+	CurWSCol         string
+	CurDirCol        string
+	CurDirIndicCol   string
+	GitBranchCol     string
+	TimeCol          string
+	TimePrefixCol    string
+	ScopeCol         string
+	InputCol         string
+	PathCol          string
+	InputStringCol   string
+	InputNumCol      string
+	InputPathCol     string
+	InputVarCol      string
+	InputBraceCol    string
+	GhostCol         string
+	WorkspaceNameCol string
 }
 
 type Configuration struct {
@@ -47,29 +48,30 @@ type Configuration struct {
 func DefaultConfiguration() Configuration {
 	return Configuration{
 		Theme: Theme{
-			ErrorCol:       Red,
-			LSDirCol:       Yellow,
-			LSSymLinkCol:   Cyan,
-			LSExecCol:      Green,
-			LSNormalCol:    White,
-			SudoPromptCol:  Red,
-			PromptCol:      Magenta,
-			IdxCol:         Cyan,
-			CurWSCol:       Yellow,
-			CurDirCol:      Cyan,
-			CurDirIndicCol: Blue,
-			GitBranchCol:   Green,
-			TimeCol:        Yellow,
-			TimePrefixCol:  Cyan,
-			ScopeCol:       Yellow,
-			InputCol:       Cyan,
-			PathCol:        Blue,
-			InputStringCol: Green,
-			InputNumCol:    Blue,
-			InputPathCol:   Yellow,
-			InputVarCol:    Magenta,
-			InputBraceCol:  Blue,
-			GhostCol:       Gray,
+			ErrorCol:         Red,
+			LSDirCol:         Yellow,
+			LSSymLinkCol:     Cyan,
+			LSExecCol:        Green,
+			LSNormalCol:      White,
+			SudoPromptCol:    Red,
+			PromptCol:        Magenta,
+			IdxCol:           Cyan,
+			CurWSCol:         Yellow,
+			CurDirCol:        Cyan,
+			CurDirIndicCol:   Blue,
+			GitBranchCol:     Green,
+			TimeCol:          Yellow,
+			TimePrefixCol:    Cyan,
+			ScopeCol:         Yellow,
+			InputCol:         Cyan,
+			PathCol:          Blue,
+			InputStringCol:   Green,
+			InputNumCol:      Blue,
+			InputPathCol:     Yellow,
+			InputVarCol:      Magenta,
+			InputBraceCol:    Blue,
+			GhostCol:         Gray,
+			WorkspaceNameCol: Yellow,
 		},
 		SudoPrompt: "#!",
 		Prompt:     "»",

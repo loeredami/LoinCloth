@@ -297,6 +297,9 @@ func renderPromptInfo(state *State, time_taken ungo.Optional[time.Duration]) str
 		if state.workspaces.Size() != 1 {
 			fmt.Printf("[%s%d%s] ", state.GetColor(state.config.IdxCol), idx, state.Reset())
 		}
+		if ws.name != "" {
+			fmt.Printf("[%s%s%s] ", state.GetColor(state.config.WorkspaceNameCol), ws.name, state.Reset())
+		}
 		fmt.Printf("%s%s%s", state.GetColor(state.config.PathCol), ReformatPathIfInHome(ws.path), state.Reset())
 
 		if state.workspaces.Size() != 1 {

@@ -415,6 +415,7 @@ func main() {
 
 	start_dir, _ := os.Getwd()
 	state.workspaces.Add(&Workspace{
+		name:   "",
 		path:   start_dir,
 		scopes: ungo.NewLinkedList[*Scope](),
 	})

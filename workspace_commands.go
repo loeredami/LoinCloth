@@ -92,6 +92,7 @@ func HandleStateCommands(state *State, command []string) ungo.Optional[error] {
 		switch command[1] {
 		case "w":
 			state.workspaces.Add(&Workspace{
+				name:   "",
 				path:   state.workspaces.Get(state.cur_workspace).Value().path,
 				scopes: ungo.NewLinkedList[*Scope](),
 			})
@@ -115,7 +116,22 @@ func HandleStateCommands(state *State, command []string) ungo.Optional[error] {
 
 	case "!switch":
 		if len(command) < 2 {
-			return ungo.Some(fmt.Errorf("expected index of workspace"))
+			return ungo.Some(fmt.Errorf("expected index or label of workspace"))
+		}
+
+		var found_label bool = false
+		state.workspaces.ForEach(func(idx int, ws *Workspace) {
+			if found_label {
+				return
+			}
+			if ws.name == command[1] {
+				state.cur_workspace = int(idx)
+				found_label = true
+			}
+		})
+
+		if found_label {
+			return ungo.None[error]()
 		}
 
 		idx, err := strconv.ParseUint(command[1], 10, 64)
@@ -307,6 +323,9 @@ func HandleStateCommands(state *State, command []string) ungo.Optional[error] {
 		case "ghost":
 			state.config.GhostCol = color
 			return ungo.None[error]()
+		case "workspace":
+			state.config.WorkspaceNameCol = color
+			return ungo.None[error]()
 		}
 
 		return ungo.Some(fmt.Errorf("cound not find color field '%s'", command[1]))
@@ -329,6 +348,15 @@ func HandleStateCommands(state *State, command []string) ungo.Optional[error] {
 		}
 
 		return ungo.Some(fmt.Errorf("cound not find string field '%s'", command[1]))
+
+	case "!label":
+		if len(command) < 2 {
+			return ungo.Some(fmt.Errorf("expected label for workspace"))
+		}
+
+		state.workspaces.Get(state.cur_workspace).Value().name = command[1]
+
+		return ungo.None[error]()
 
 	case "!enable-colors":
 		state.config.ColorMode = true
