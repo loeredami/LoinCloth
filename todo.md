@@ -1,6 +1,6 @@
 # TODO
 
-# 1.3
+# v1.3
 * Ghost input, matching previous commands, or known variables/commands
 * `!snapshot`: dump current scope data into  .cloth file
 * Add support for path wildcards
