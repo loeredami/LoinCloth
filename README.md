@@ -6,6 +6,9 @@ You can create multiple workspaces, and scopes which each hold their own aliases
 
 You can create and load in .cloth scripts, to load in scope and aliases.
 
+# MAC OS Support
+Mac os is not supported however binaries will be released, and pull requests for fixes on that platform are welcomed.
+
 # Workspaces
 
 ```sh
