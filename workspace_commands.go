@@ -208,6 +208,9 @@ func HandleStateCommands(state *State, command []string) ungo.Optional[error] {
 		var found_scope bool = false
 		state.workspaces.Get(state.cur_workspace).IfPresent(func(w *Workspace) {
 			w.scopes.ForEach(func(idx int, sc *Scope) {
+				if found_scope {
+					return
+				}
 				if sc.name == command[1] {
 					w.scopes.Get(idx).Value().overrides.Clear()
 					w.scopes.Remove(idx)
