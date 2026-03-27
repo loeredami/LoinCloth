@@ -44,6 +44,22 @@ func (state *State) RefreshLine(prompt string, buffer []rune, cursor int) {
 		termWidth = 80
 	}
 
+	visiblePromptLen := 0
+	inEscape := false
+	for _, r := range prompt {
+		if r == '\033' {
+			inEscape = true
+			continue
+		}
+		if inEscape {
+			if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
+				inEscape = false
+			}
+			continue
+		}
+		visiblePromptLen++
+	}
+
 	highlightedBuffer := state.highlightInput(buffer)
 
 	displayText := string(buffer)
@@ -51,8 +67,8 @@ func (state *State) RefreshLine(prompt string, buffer []rune, cursor int) {
 		displayText += state.ghostSuggestion
 	}
 
-	totalLen := uint(len(prompt) + len(displayText))
-	rowCount := (totalLen + (termWidth) - 1) / termWidth
+	totalLen := uint(visiblePromptLen + len(displayText))
+	rowCount := (totalLen + termWidth - 1) / termWidth
 
 	if state.lastRowCount > 1 {
 		fmt.Printf("\033[%dA", state.lastRowCount-1)
@@ -65,8 +81,8 @@ func (state *State) RefreshLine(prompt string, buffer []rune, cursor int) {
 		fmt.Printf("%s%s%s", state.GetColor(state.config.GhostCol), state.ghostSuggestion, state.Reset())
 	}
 
-	targetPos := len(prompt) + cursor
-	currentPos := len(prompt) + len(buffer)
+	targetPos := visiblePromptLen + cursor
+	currentPos := visiblePromptLen + len(buffer)
 	if cursor == len(buffer) {
 		currentPos += len(state.ghostSuggestion)
 	}
@@ -259,12 +275,19 @@ func processTokens(state *State, tokenSlice []Token) []string {
 				}
 				innerTokens = append(innerTokens, tokenSlice[j])
 			}
-			i = j
+
+			if depth == 0 {
+				i = j
+			} else {
+				i = len(tokenSlice)
+			}
 
 			innerArgs := processTokens(state, innerTokens)
-			output := RunAndCapture(state, innerArgs)
-			words := strings.Fields(output)
-			cmd = append(cmd, words...)
+			if len(innerArgs) > 0 {
+				output := RunAndCapture(state, innerArgs)
+				words := strings.Fields(output)
+				cmd = append(cmd, words...)
+			}
 			continue
 		}
 
@@ -315,7 +338,11 @@ func Run(state *State, cmdArgs []string, w io.Writer) {
 	if !strings.HasPrefix(cmdArgs[0], "!") {
 		if cmdArgs[0] == "cd" {
 			if len(cmdArgs) > 1 {
-				os.Chdir(cmdArgs[1])
+				err := os.Chdir(cmdArgs[1])
+				if err != nil {
+					fmt.Fprintf(w, "%s%v%s\n", state.GetColor(state.config.ErrorCol), err, state.Reset())
+					return
+				}
 				state.workspaces.Get(state.cur_workspace).IfPresent(func(ws *Workspace) {
 					ws.path, _ = os.Getwd()
 				})
@@ -334,7 +361,13 @@ func Run(state *State, cmdArgs []string, w io.Writer) {
 			}
 		}
 
-		c := exec.Command(cmdArgs[0], cmdArgs[1:]...)
+		cmdPath, err := exec.LookPath(cmdArgs[0])
+		if err != nil {
+			fmt.Fprintf(w, "%sCommand not found: %s%s\n", state.GetColor(state.config.ErrorCol), cmdArgs[0], state.Reset())
+			return
+		}
+
+		c := exec.Command(cmdPath, cmdArgs[1:]...)
 		c.Stdout = w
 		c.Stdin = os.Stdin
 		c.Stderr = os.Stderr
@@ -361,7 +394,7 @@ func Run(state *State, cmdArgs []string, w io.Writer) {
 		}
 		c.Env = finalEnv
 
-		err := c.Run()
+		err = c.Run()
 		if err != nil {
 			fmt.Fprintf(w, "%s%v%s\n", state.GetColor(state.config.ErrorCol), err, state.Reset())
 		}
