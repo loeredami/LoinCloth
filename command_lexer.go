@@ -84,7 +84,7 @@ func Lex(input string) *ungo.LinkedList[Token] {
 						curr := state.input[0]
 
 						if curr == '\\' && len(state.input) > 1 && state.input[1] == ' ' {
-							builder.WriteByte(' ') // Only write the space, consume the backslash
+							builder.WriteByte(' ')
 							state.input = state.input[2:]
 							continue
 						}
@@ -97,10 +97,7 @@ func Lex(input string) *ungo.LinkedList[Token] {
 							break
 						}
 					}
-					state.tokens.Add(Token{
-						Path,
-						ungo.Some(builder.String()),
-					})
+					state.tokens.Add(Token{Path, ungo.Some(builder.String())})
 				}
 				return state
 			},
@@ -111,7 +108,7 @@ func Lex(input string) *ungo.LinkedList[Token] {
 					return state
 				}
 				blacklist := "#${}*"
-				if strings.Contains(blacklist, string([]byte{state.input[0]})) {
+				if strings.ContainsRune(blacklist, rune(state.input[0])) {
 					return state
 				}
 				if !unicode.IsSpace(rune(state.input[0])) && !unicode.IsNumber(rune(state.input[0])) && state.input[0] != '"' {
@@ -198,11 +195,11 @@ func Lex(input string) *ungo.LinkedList[Token] {
 				}
 
 				if len(state.input) >= 2 && state.input[0] == '#' && state.input[1] == '#' {
-					state.input = state.input[2:] // Consume the ##
+					state.input = state.input[2:]
 
 					for len(state.input) >= 2 {
 						if state.input[0] == '#' && state.input[1] == '#' {
-							state.input = state.input[2:] // Consume the closing ##
+							state.input = state.input[2:]
 							return state
 						}
 						state.input = state.input[1:]

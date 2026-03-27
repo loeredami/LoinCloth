@@ -376,28 +376,37 @@ func Run(state *State, cmdArgs []string, w io.Writer) {
 func ReadConfiguration(state *State) {
 	path, err := os.UserConfigDir()
 	if err != nil {
-		fmt.Printf("Could not find User config directory.")
+		fmt.Printf("Could not find User config directory.\n")
 		return
 	}
 
 	path = filepath.Join(path, ".loin")
 
-	os.Mkdir(path, os.ModePerm)
+	err = os.MkdirAll(path, 0755)
+	if err != nil {
+		fmt.Printf("Error creating configuration directory: %v\n", err)
+		return
+	}
 
-	f, _ := os.OpenFile(filepath.Join(path, "default.cloth"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	configFilePath := filepath.Join(path, "default.cloth")
+	f, err := os.OpenFile(configFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Printf("Error ensuring configuration file exists: %v\n", err)
+		return
+	}
 	f.Close()
 
-	data, err := os.ReadFile(filepath.Join(path, "default.cloth"))
-
+	data, err := os.ReadFile(configFilePath)
 	if err != nil {
-		fmt.Printf("Error reading configuration: %v", err)
+		fmt.Printf("Error reading configuration: %v\n", err)
 		return
 	}
 
 	lines := strings.Split(string(data), "\n")
-
 	for _, line := range lines {
-		RunString(state, line)
+		if strings.TrimSpace(line) != "" {
+			RunString(state, line)
+		}
 	}
 }
 

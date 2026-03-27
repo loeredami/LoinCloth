@@ -24,9 +24,9 @@ const (
 func RunWinCommands(cmdArgs []string) bool {
 	if cmdArgs[0] == "mkdir" {
 		if len(cmdArgs) > 1 {
-			err := os.Mkdir(cmdArgs[1], os.ModeDir)
+			err := os.MkdirAll(cmdArgs[1], 0755)
 			if err != nil {
-				fmt.Printf("%s%v%s", Red, err, Reset)
+				fmt.Printf("%s%v%s\n", Red, err, Reset)
 			}
 		}
 		return true
@@ -36,7 +36,7 @@ func RunWinCommands(cmdArgs []string) bool {
 		cmd.Stdout = os.Stdout
 		err := cmd.Run()
 		if err != nil {
-			fmt.Printf("%s%v%s", Red, err, Reset)
+			fmt.Printf("%s%v%s\n", Red, err, Reset)
 		}
 		return true
 	}
@@ -53,7 +53,7 @@ func RunWinCommands(cmdArgs []string) bool {
 		if len(cmdArgs) > 2 {
 			err := copyDir(cmdArgs[1], cmdArgs[2])
 			if err != nil {
-				fmt.Printf("%s%v%s", Red, err, Reset)
+				fmt.Printf("%s%v%s\n", Red, err, Reset)
 			}
 		}
 		return true
@@ -62,7 +62,7 @@ func RunWinCommands(cmdArgs []string) bool {
 		if len(cmdArgs) > 2 {
 			err := os.Rename(cmdArgs[1], cmdArgs[2])
 			if err != nil {
-				fmt.Printf("%s%v%s", Red, err, Reset)
+				fmt.Printf("%s%v%s\n", Red, err, Reset)
 			}
 		}
 		return true
@@ -71,7 +71,7 @@ func RunWinCommands(cmdArgs []string) bool {
 		if len(cmdArgs) > 1 {
 			err := os.RemoveAll(cmdArgs[1])
 			if err != nil {
-				fmt.Printf("%s%v%s", Red, err, Reset)
+				fmt.Printf("%s%v%s\n", Red, err, Reset)
 			}
 		}
 		return true
