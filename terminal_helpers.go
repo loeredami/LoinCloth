@@ -288,6 +288,7 @@ func readRawInput(state *State, promptStr string) string {
 		}
 	}
 }
+
 func renderPromptInfo(state *State, time_taken ungo.Optional[time.Duration]) string {
 	cur_dir, _ := os.Getwd()
 	admin := os.Getuid() == 0
@@ -392,6 +393,7 @@ func (state *State) highlightInput(raw []rune) string {
 
 	return highlighted.String()
 }
+
 func (state *State) updateGhostSuggestion(buffer []rune) {
 	state.ghostSuggestion = ""
 	if len(buffer) == 0 {
