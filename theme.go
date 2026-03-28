@@ -33,6 +33,7 @@ type Theme struct {
 	InputPathCol     string
 	InputVarCol      string
 	InputBraceCol    string
+	InternalCmdCol   string
 	GhostCol         string
 	WorkspaceNameCol string
 }
@@ -70,6 +71,7 @@ func DefaultConfiguration() Configuration {
 			InputPathCol:     Yellow,
 			InputVarCol:      Magenta,
 			InputBraceCol:    Blue,
+			InternalCmdCol:   Magenta,
 			GhostCol:         Gray,
 			WorkspaceNameCol: Yellow,
 		},

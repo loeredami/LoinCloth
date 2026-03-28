@@ -9,6 +9,21 @@ import (
 	"github.com/loeredami/ungo"
 )
 
+type StateCmd func(state *State, args []string) ungo.Optional[error]
+
+var StateCommands = ungo.NewSmallMap[string, StateCmd](256)
+
+func RegisterCmd(name string, fn StateCmd) {
+	StateCommands.Set(name, fn)
+}
+
+func HandleStateCommands(state *State, command []string) ungo.Optional[error] {
+	if cmd, exists := StateCommands.Get(command[0]); exists {
+		return cmd(state, command)
+	}
+	return ungo.Some(fmt.Errorf("unrecognized internal command: %s", command[0]))
+}
+
 func GetEnvValue(state *State, key string) ungo.Optional[[]string] {
 	ws_opt := state.workspaces.Get(state.cur_workspace)
 
@@ -82,9 +97,8 @@ func GetEnvValue(state *State, key string) ungo.Optional[[]string] {
 	return result
 }
 
-func HandleStateCommands(state *State, command []string) ungo.Optional[error] {
-	switch command[0] {
-	case "!new":
+func init() {
+	RegisterCmd("!new", func(state *State, command []string) ungo.Optional[error] {
 		if len(command) < 2 {
 			return ungo.Some(fmt.Errorf("expected argument 'w' for workspace or 's' for scope"))
 		}
@@ -113,8 +127,8 @@ func HandleStateCommands(state *State, command []string) ungo.Optional[error] {
 		}
 
 		return ungo.None[error]()
-
-	case "!switch":
+	})
+	RegisterCmd("!switch", func(state *State, command []string) ungo.Optional[error] {
 		if len(command) < 2 {
 			return ungo.Some(fmt.Errorf("expected index or label of workspace"))
 		}
@@ -156,8 +170,9 @@ func HandleStateCommands(state *State, command []string) ungo.Optional[error] {
 		}
 
 		return ungo.None[error]()
+	})
 
-	case "!close":
+	RegisterCmd("!close", func(state *State, command []string) ungo.Optional[error] {
 		if len(command) < 2 {
 			return ungo.Some(fmt.Errorf("expected index of workspace"))
 		}
@@ -182,8 +197,9 @@ func HandleStateCommands(state *State, command []string) ungo.Optional[error] {
 
 		state.workspaces.Remove(int(idx))
 		return ungo.None[error]()
+	})
 
-	case "!clone":
+	RegisterCmd("!clone", func(state *State, command []string) ungo.Optional[error] {
 		if len(command) < 2 {
 			return ungo.Some(fmt.Errorf("expected index of workspace"))
 		}
@@ -200,8 +216,9 @@ func HandleStateCommands(state *State, command []string) ungo.Optional[error] {
 
 		state.workspaces.Add(state.workspaces.Get(int(idx)).Value().Clone())
 		return ungo.None[error]()
+	})
 
-	case "!drop":
+	RegisterCmd("!drop", func(state *State, command []string) ungo.Optional[error] {
 		if len(command) < 2 {
 			return ungo.Some(fmt.Errorf("expected name of scope"))
 		}
@@ -226,8 +243,8 @@ func HandleStateCommands(state *State, command []string) ungo.Optional[error] {
 		}
 
 		return ungo.None[error]()
-
-	case "!set":
+	})
+	RegisterCmd("!set", func(state *State, command []string) ungo.Optional[error] {
 		if len(command) < 3 {
 			return ungo.Some(fmt.Errorf("expected name of field and value"))
 		}
@@ -242,8 +259,8 @@ func HandleStateCommands(state *State, command []string) ungo.Optional[error] {
 		})
 
 		return ungo.None[error]()
-
-	case "!wear":
+	})
+	RegisterCmd("!wear", func(state *State, command []string) ungo.Optional[error] {
 		if len(command) < 2 {
 			return ungo.Some(fmt.Errorf("expected .cloth file path"))
 		}
@@ -261,8 +278,8 @@ func HandleStateCommands(state *State, command []string) ungo.Optional[error] {
 		}
 
 		return ungo.None[error]()
-
-	case "!color":
+	})
+	RegisterCmd("!color", func(state *State, command []string) ungo.Optional[error] {
 		if len(command) < 3 {
 			return ungo.Some(fmt.Errorf("expected field name <string> and color code <int>"))
 		}
@@ -350,8 +367,8 @@ func HandleStateCommands(state *State, command []string) ungo.Optional[error] {
 		}
 
 		return ungo.Some(fmt.Errorf("cound not find color field '%s'", command[1]))
-
-	case "!local":
+	})
+	RegisterCmd("!local", func(state *State, command []string) ungo.Optional[error] {
 		if len(command) < 3 {
 			return ungo.Some(fmt.Errorf("expected field name <string> and string value <string>"))
 		}
@@ -369,8 +386,8 @@ func HandleStateCommands(state *State, command []string) ungo.Optional[error] {
 		}
 
 		return ungo.Some(fmt.Errorf("cound not find string field '%s'", command[1]))
-
-	case "!label":
+	})
+	RegisterCmd("!label", func(state *State, command []string) ungo.Optional[error] {
 		if len(command) < 2 {
 			return ungo.Some(fmt.Errorf("expected label for workspace"))
 		}
@@ -378,20 +395,20 @@ func HandleStateCommands(state *State, command []string) ungo.Optional[error] {
 		state.workspaces.Get(state.cur_workspace).Value().name = command[1]
 
 		return ungo.None[error]()
-
-	case "!enable-colors":
+	})
+	RegisterCmd("!enable-colors", func(state *State, command []string) ungo.Optional[error] {
 		state.config.ColorMode = true
 		return ungo.None[error]()
-
-	case "!disable-colors":
+	})
+	RegisterCmd("!disable-colors", func(state *State, command []string) ungo.Optional[error] {
 		state.config.ColorMode = false
 		return ungo.None[error]()
-
-	case "!reset":
+	})
+	RegisterCmd("!reset", func(state *State, command []string) ungo.Optional[error] {
 		state.ResetConfig()
 		return ungo.None[error]()
-
-	case "!snapshot":
+	})
+	RegisterCmd("!snapshot", func(state *State, command []string) ungo.Optional[error] {
 		if len(command) < 2 {
 			return ungo.Some(fmt.Errorf("expected .cloth file"))
 		}
@@ -413,8 +430,8 @@ func HandleStateCommands(state *State, command []string) ungo.Optional[error] {
 		})
 
 		return failure
-
-	case "!snapshot-ws":
+	})
+	RegisterCmd("!snapshot-ws", func(state *State, command []string) ungo.Optional[error] {
 		if len(command) < 2 {
 			return ungo.Some(fmt.Errorf("expected .cloth file"))
 		}
@@ -426,8 +443,6 @@ func HandleStateCommands(state *State, command []string) ungo.Optional[error] {
 			failure = ungo.Some(err)
 		}
 		return failure
+	})
 
-	default:
-		return ungo.Some(fmt.Errorf("unrecognised internal command: %s", command[0]))
-	}
 }

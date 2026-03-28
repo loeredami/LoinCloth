@@ -339,44 +339,43 @@ func renderPromptInfo(state *State, time_taken ungo.Optional[time.Duration]) str
 	return promptStr
 }
 
-func (state *State) highlightInput(buffer []rune) string {
-	if !state.config.ColorMode || len(buffer) == 0 {
-		return string(buffer)
+func (state *State) highlightInput(raw []rune) string {
+	if !state.config.ColorMode {
+		return string(raw)
 	}
 
-	raw := string(buffer)
-	tokens := Lex(raw)
+	tokens := Lex(string(raw))
 	var highlighted strings.Builder
-
 	currentIdx := 0
+	rawStr := string(raw)
 
-	tokens.ForEach(func(idx int, t Token) {
-		if t.Type == EndOfInput {
-			return
-		}
-
-		t.Value.IfPresent(func(val string) {
-			foundIdx := strings.Index(raw[currentIdx:], val)
-
+	tokens.ForEach(func(i int, tk Token) {
+		tk.Value.IfPresent(func(val string) {
+			foundIdx := strings.Index(rawStr[currentIdx:], val)
 			if foundIdx != -1 {
 				foundIdx += currentIdx
+				highlighted.WriteString(rawStr[currentIdx:foundIdx])
 
-				if foundIdx > currentIdx {
-					highlighted.WriteString(state.Reset() + raw[currentIdx:foundIdx] + state.Reset())
-				}
-
-				color := state.Reset()
-				switch t.Type {
+				color := state.GetColor(state.config.InputCol)
+				switch tk.Type {
 				case Identifier:
-					color = state.GetColor(state.config.InputCol)
+					if strings.HasPrefix(val, "!") {
+						if _, exists := StateCommands.Get(val); exists {
+							color = state.GetColor(state.config.InternalCmdCol)
+						} else {
+							color = state.GetColor(state.config.ErrorCol) // Typo highlighting
+						}
+					} else {
+						color = state.GetColor(state.config.InputCol)
+					}
 				case String:
 					color = state.GetColor(state.config.InputStringCol)
 				case Number:
 					color = state.GetColor(state.config.InputNumCol)
-				case Path:
-					color = state.GetColor(state.config.InputPathCol)
 				case Varname:
 					color = state.GetColor(state.config.InputVarCol)
+				case Path:
+					color = state.GetColor(state.config.InputPathCol)
 				case OpenBrace, CloseBrace:
 					color = state.GetColor(state.config.InputBraceCol)
 				}
@@ -387,13 +386,12 @@ func (state *State) highlightInput(buffer []rune) string {
 		})
 	})
 
-	if currentIdx < len(raw) {
-		highlighted.WriteString(state.Reset() + raw[currentIdx:] + state.Reset())
+	if currentIdx < len(rawStr) {
+		highlighted.WriteString(state.Reset() + rawStr[currentIdx:] + state.Reset())
 	}
 
 	return highlighted.String()
 }
-
 func (state *State) updateGhostSuggestion(buffer []rune) {
 	state.ghostSuggestion = ""
 	if len(buffer) == 0 {
@@ -405,6 +403,19 @@ func (state *State) updateGhostSuggestion(buffer []rune) {
 	for i := len(state.history) - 1; i >= 0; i-- {
 		if strings.HasPrefix(state.history[i], line) && state.history[i] != line {
 			state.ghostSuggestion = state.history[i][len(line):]
+			return
+		}
+	}
+
+	if strings.HasPrefix(line, "!") {
+		var foundCmd string
+		StateCommands.ForEach(func(cmdName string, cmd StateCmd) {
+			if foundCmd == "" && strings.HasPrefix(cmdName, line) && cmdName != line {
+				foundCmd = cmdName[len(line):]
+			}
+		})
+		if foundCmd != "" {
+			state.ghostSuggestion = foundCmd + " "
 			return
 		}
 	}
@@ -438,6 +449,37 @@ func (state *State) updateGhostSuggestion(buffer []rune) {
 
 			if foundMatch != "" {
 				state.ghostSuggestion = foundMatch
+				return
+			}
+		}
+	}
+
+	lastWordStart := strings.LastIndexAny(line, " \t\n\r\"'{}/\\") + 1
+	searchPath := line[lastWordStart:]
+	if searchPath != "" {
+		resolvedPath := UnformatPathIfInHome(searchPath)
+		dir, prefix := ".", resolvedPath
+
+		lastSlash := strings.LastIndex(resolvedPath, "/")
+		if lastSlash != -1 {
+			dir = resolvedPath[:lastSlash]
+			if dir == "" {
+				dir = "/"
+			}
+			prefix = resolvedPath[lastSlash+1:]
+		}
+
+		if entries, err := os.ReadDir(dir); err == nil {
+			for _, entry := range entries {
+				if strings.HasPrefix(entry.Name(), prefix) && entry.Name() != prefix {
+					remainder := entry.Name()[len(prefix):]
+					if entry.IsDir() {
+						state.ghostSuggestion = remainder + "/"
+					} else {
+						state.ghostSuggestion = remainder + " "
+					}
+					return
+				}
 			}
 		}
 	}

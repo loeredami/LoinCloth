@@ -106,77 +106,113 @@ func (state *State) HandleAutocomplete(buffer []rune, cursor *int) []rune {
 		state.lastAddedLen = 0
 
 		currentLine := string(buffer[:*cursor])
-		var lastArgUnescaped strings.Builder
-		inQuotes := false
-		escaped := false
 
-		for _, r := range currentLine {
-			if escaped {
+		if strings.HasPrefix(currentLine, "!") {
+			StateCommands.ForEach(func(cmdName string, cmd StateCmd) {
+				if strings.HasPrefix(cmdName, currentLine) {
+					fmt.Print("\a")
+					state.autoCompleteMatches = append(state.autoCompleteMatches, cmdName[len(currentLine):]+" ")
+				}
+			})
+		}
+
+		if len(state.autoCompleteMatches) == 0 {
+			lastWordStart := strings.LastIndexAny(currentLine, " \t\n\r\"'{}/\\") + 1
+			lastWord := currentLine[lastWordStart:]
+
+			if strings.HasPrefix(lastWord, "$") {
+				varNamePart := lastWord[1:]
+				seen := make(map[string]bool)
+
+				state.workspaces.Get(state.cur_workspace).IfPresent(func(ws *Workspace) {
+					ws.scopes.ForEach(func(idx int, sc *Scope) {
+						sc.overrides.ForEach(func(key, value string) {
+							if strings.HasPrefix(key, varNamePart) && !seen[key] {
+								state.autoCompleteMatches = append(state.autoCompleteMatches, key[len(varNamePart):])
+								seen[key] = true
+							}
+						})
+					})
+				})
+
+				for _, e := range os.Environ() {
+					pair := strings.SplitN(e, "=", 2)
+					if strings.HasPrefix(pair[0], varNamePart) && !seen[pair[0]] {
+						state.autoCompleteMatches = append(state.autoCompleteMatches, pair[0][len(varNamePart):])
+						seen[pair[0]] = true
+					}
+				}
+			}
+		}
+
+		if len(state.autoCompleteMatches) == 0 {
+			var lastArgUnescaped strings.Builder
+			inQuotes, escaped := false, false
+
+			for _, r := range currentLine {
+				if escaped {
+					lastArgUnescaped.WriteRune(r)
+					escaped = false
+					continue
+				}
+				if r == '\\' {
+					escaped = true
+					continue
+				}
+				if r == '"' {
+					inQuotes = !inQuotes
+					continue
+				}
+				if r == ' ' && !inQuotes {
+					lastArgUnescaped.Reset()
+					continue
+				}
 				lastArgUnescaped.WriteRune(r)
-				escaped = false
-				continue
 			}
-			if r == '\\' {
-				escaped = true
-				continue
-			}
-			if r == '"' {
-				inQuotes = !inQuotes
-				continue
-			}
-			if r == ' ' && !inQuotes {
-				lastArgUnescaped.Reset()
-				continue
-			}
-			lastArgUnescaped.WriteRune(r)
-		}
 
-		searchPath := lastArgUnescaped.String()
-		resolvedSearchPath := UnformatPathIfInHome(searchPath)
+			searchPath := lastArgUnescaped.String()
+			resolvedSearchPath := UnformatPathIfInHome(searchPath)
 
-		dir := "."
-		prefix := searchPath
-		lastSlash := strings.LastIndex(resolvedSearchPath, "/")
+			dir, prefix := ".", searchPath
+			lastSlash := strings.LastIndex(resolvedSearchPath, "/")
 
-		if lastSlash != -1 {
-			if lastSlash == 0 {
-				dir = "/"
-			} else {
+			if lastSlash != -1 {
 				dir = resolvedSearchPath[:lastSlash]
+				if dir == "" {
+					dir = "/"
+				}
+				lastSlashInOriginal := strings.LastIndex(searchPath, "/")
+				prefix = searchPath[lastSlashInOriginal+1:]
+			} else if strings.HasPrefix(searchPath, "~") {
+				dir = UnformatPathIfInHome("~")
+				prefix = ""
 			}
-			lastSlashInOriginal := strings.LastIndex(searchPath, "/")
-			prefix = searchPath[lastSlashInOriginal+1:]
-		} else if strings.HasPrefix(searchPath, "~") {
-			dir = UnformatPathIfInHome("~")
-			prefix = ""
-		}
 
-		entries, err := os.ReadDir(dir)
-		if err != nil {
-			return buffer
-		}
+			entries, err := os.ReadDir(dir)
+			if err == nil {
+				for _, entry := range entries {
+					if strings.HasPrefix(entry.Name(), prefix) {
+						remainder := entry.Name()[len(prefix):]
+						var appendStr strings.Builder
 
-		for _, entry := range entries {
-			if strings.HasPrefix(entry.Name(), prefix) {
-				remainder := entry.Name()[len(prefix):]
-				var appendStr strings.Builder
+						for _, r := range remainder {
+							if r == ' ' && !inQuotes {
+								appendStr.WriteRune('\\')
+							}
+							appendStr.WriteRune(r)
+						}
 
-				for _, r := range remainder {
-					if r == ' ' && !inQuotes {
-						appendStr.WriteRune('\\')
+						if entry.IsDir() {
+							appendStr.WriteRune('/')
+						} else {
+							if inQuotes {
+								appendStr.WriteRune('"')
+							}
+							appendStr.WriteRune(' ')
+						}
+						state.autoCompleteMatches = append(state.autoCompleteMatches, appendStr.String())
 					}
-					appendStr.WriteRune(r)
 				}
-
-				if entry.IsDir() {
-					appendStr.WriteRune('/')
-				} else {
-					if inQuotes {
-						appendStr.WriteRune('"')
-					}
-					appendStr.WriteRune(' ')
-				}
-				state.autoCompleteMatches = append(state.autoCompleteMatches, appendStr.String())
 			}
 		}
 	}
@@ -338,7 +374,8 @@ func Run(state *State, cmdArgs []string, w io.Writer) {
 	if !strings.HasPrefix(cmdArgs[0], "!") {
 		if cmdArgs[0] == "cd" {
 			if len(cmdArgs) > 1 {
-				err := os.Chdir(cmdArgs[1])
+				target := UnformatPathIfInHome(cmdArgs[1])
+				err := os.Chdir(target)
 				if err != nil {
 					fmt.Fprintf(w, "%s%v%s\n", state.GetColor(state.config.ErrorCol), err, state.Reset())
 					return
