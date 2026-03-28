@@ -231,6 +231,9 @@ If you need to reload your `default.cloth` from your configuration folder just t
 ## Ghost Input
 Ghost input appears as you are typing commands or known variables, press the right arrow key to accept them.
 
+## Vs Code Syntax Highlighting
+To add syntax highligting for .cloth files in vscode, download the source code, and copy the "cloth-syntax" folder into your vscode extensions folder. `~/.vscode/extensions`
+
 # Configuration
 When launching into version Pre-Release 1.2 or newer, you will have created a "default.cloth", in your OS's user configuration folder.
 

@@ -1,0 +1,52 @@
+{
+    "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+    "name": "Cloth",
+    "scopeName": "source.cloth",
+    "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#variables" },
+    { "include": "#internal_commands" },
+    { "include": "#numbers" },
+    { "include": "#braces" }
+    ],
+    "repository": {
+    "comments": {
+        "patterns": [
+        {
+            "name": "comment.block.cloth",
+            "begin": "##",
+            "end": "##"
+        },
+        {
+            "name": "comment.line.number-sign.cloth",
+            "match": "#.*$"
+        }
+        ]
+    },
+    "strings": {
+        "name": "string.quoted.double.cloth",
+        "begin": "\"",
+        "end": "\"",
+        "patterns": [
+        { "name": "constant.character.escape.cloth", "match": "\\\\." }
+        ]
+    },
+    "variables": {
+        "name": "variable.other.cloth",
+        "match": "\\$[a-zA-Z0-9_]+"
+    },
+    "internal_commands": {
+        "name": "keyword.control.cloth",
+        "match": "![a-zA-Z0-9_]+"
+    },
+    "numbers": {
+        "name": "constant.numeric.cloth",
+        "match": "\\b[0-9]+\\b"
+    },
+    "braces": {
+        "name": "punctuation.section.braces.cloth",
+        "match": "[{}]"
+    }
+    }
+}

@@ -1,0 +1,21 @@
+{
+    "name": "cloth-syntax",
+    "displayName": "Cloth Syntax",
+    "description": "Syntax highlighting for .cloth scripts",
+    "version": "0.0.1",
+    "engines": { "vscode": "^1.50.0" },
+    "categories": [ "Programming Languages" ],
+    "contributes": {
+    "languages": [{
+        "id": "cloth",
+        "aliases": ["Cloth", "cloth"],
+        "extensions": [".cloth"],
+        "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+        "language": "cloth",
+        "scopeName": "source.cloth",
+        "path": "./syntaxes/cloth.tmLanguage.json"
+    }]
+    }
+}
