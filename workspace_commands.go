@@ -244,7 +244,7 @@ func init() {
 
 		return ungo.None[error]()
 	})
-	RegisterCmd("!set-ifn", func(state *State, command []string) ungo.Optional[error]) {
+	RegisterCmd("!set-ifn", func(state *State, command []string) ungo.Optional[error] {
 		if len(command) < 3 {
 			return ungo.Some(fmt.Errorf("expected name of field and value"))
 		}
@@ -255,11 +255,13 @@ func init() {
 		scopes := state.workspaces.Get(state.cur_workspace).Value().scopes
 
 		GetEnvValue(state, command[1]).IfAbsent(func(*[]string) {
-			s.overrides.Set(command[1], command[2])
+			scopes.Get(scopes.Size() - 1).IfPresent(func(s *Scope) {
+				s.overrides.Set(command[1], command[2])
+			})
 		})
 
 		return ungo.None[error]()
-	}
+	})
 	RegisterCmd("!set", func(state *State, command []string) ungo.Optional[error] {
 		if len(command) < 3 {
 			return ungo.Some(fmt.Errorf("expected name of field and value"))
