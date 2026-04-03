@@ -4,5 +4,7 @@ github.com/loeredami/ungo v0.0.0-20260320171556-20355c45d92c h1:KLLgnXxJ8TQswpEm
 github.com/loeredami/ungo v0.0.0-20260320171556-20355c45d92c/go.mod h1:iPo7ju+VlgH9ilyif8jfZaXIJBYJYjIik1bl4JPTWM0=
 github.com/loeredami/ungo v0.0.0-20260323122146-df28c1f6835d h1:oFy0dRM/P0rBGz4E/qMx/yt1fKCZNSQWNW+VSXE0aJY=
 github.com/loeredami/ungo v0.0.0-20260323122146-df28c1f6835d/go.mod h1:iPo7ju+VlgH9ilyif8jfZaXIJBYJYjIik1bl4JPTWM0=
+github.com/loeredami/ungo v0.0.0-20260403143045-2e1f33b81774 h1:uVopwJkvsqD3hoTeaR59vCFYPtRHWvJC+Ps7MVcPVdg=
+github.com/loeredami/ungo v0.0.0-20260403143045-2e1f33b81774/go.mod h1:iPo7ju+VlgH9ilyif8jfZaXIJBYJYjIik1bl4JPTWM0=
 github.com/wayneashleyberry/terminal-dimensions v1.1.0 h1:EB7cIzBdsOzAgmhTUtTTQXBByuPheP/Zv1zL2BRPY6g=
 github.com/wayneashleyberry/terminal-dimensions v1.1.0/go.mod h1:2lc/0eWCObmhRczn2SdGSQtgBooLUzIotkkEGXqghyg=
