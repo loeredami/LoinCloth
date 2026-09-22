@@ -299,88 +299,90 @@ func init() {
 	})
 	RegisterCmd("!color", func(state *State, command []string) ungo.Optional[error] {
 		if len(command) < 3 {
-			return ungo.Some(fmt.Errorf("expected field name <string> and color code <int>"))
+			return ungo.Some(fmt.Errorf("expected field name <string> and one or more color codes <int>"))
 		}
 
-		color_int, err := strconv.ParseUint(command[2], 10, 64)
-		if err != nil {
-			return ungo.Some(fmt.Errorf("could not parse color int '%s': %v", command[1], err))
+		color_codes := strings.Split(strings.Join(command[2:], ";"), ";")
+		var color strings.Builder
+		for _, code := range color_codes {
+			if _, err := strconv.ParseUint(code, 10, 64); err != nil {
+				return ungo.Some(fmt.Errorf("could not parse color code '%s': %v", code, err))
+			}
+			color.WriteString(fmt.Sprintf("\033[%sm", code))
 		}
-
-		color := fmt.Sprintf("\033[%dm", color_int)
 
 		switch command[1] {
 		case "err":
-			state.config.ErrorCol = color
+			state.config.ErrorCol = color.String()
 			return ungo.None[error]()
 		case "ls-dir":
-			state.config.LSDirCol = color
+			state.config.LSDirCol = color.String()
 			return ungo.None[error]()
 		case "ls-sym-link":
-			state.config.LSSymLinkCol = color
+			state.config.LSSymLinkCol = color.String()
 			return ungo.None[error]()
 		case "ls-exec":
-			state.config.LSExecCol = color
+			state.config.LSExecCol = color.String()
 			return ungo.None[error]()
 		case "ls-normal":
-			state.config.LSNormalCol = color
+			state.config.LSNormalCol = color.String()
 			return ungo.None[error]()
 		case "sudo-prompt":
-			state.config.SudoPromptCol = color
+			state.config.SudoPromptCol = color.String()
 			return ungo.None[error]()
 		case "prompt":
-			state.config.PromptCol = color
+			state.config.PromptCol = color.String()
 			return ungo.None[error]()
 		case "idx":
-			state.config.IdxCol = color
+			state.config.IdxCol = color.String()
 			return ungo.None[error]()
 		case "cur-ws":
-			state.config.CurWSCol = color
+			state.config.CurWSCol = color.String()
 			return ungo.None[error]()
 		case "cur-dir":
-			state.config.CurDirCol = color
+			state.config.CurDirCol = color.String()
 			return ungo.None[error]()
 		case "cur-dir-indic":
-			state.config.CurDirIndicCol = color
+			state.config.CurDirIndicCol = color.String()
 			return ungo.None[error]()
 		case "git-branch":
-			state.config.GitBranchCol = color
+			state.config.GitBranchCol = color.String()
 			return ungo.None[error]()
 		case "time":
-			state.config.TimeCol = color
+			state.config.TimeCol = color.String()
 			return ungo.None[error]()
 		case "time-prefix":
-			state.config.TimePrefixCol = color
+			state.config.TimePrefixCol = color.String()
 			return ungo.None[error]()
 		case "scope":
-			state.config.ScopeCol = color
+			state.config.ScopeCol = color.String()
 			return ungo.None[error]()
 		case "input":
-			state.config.InputCol = color
+			state.config.InputCol = color.String()
 			return ungo.None[error]()
 		case "path":
-			state.config.PathCol = color
+			state.config.PathCol = color.String()
 			return ungo.None[error]()
 		case "input-string":
-			state.config.InputStringCol = color
+			state.config.InputStringCol = color.String()
 			return ungo.None[error]()
 		case "input-num":
-			state.config.InputNumCol = color
+			state.config.InputNumCol = color.String()
 			return ungo.None[error]()
 		case "input-path":
-			state.config.InputPathCol = color
+			state.config.InputPathCol = color.String()
 			return ungo.None[error]()
 		case "input-var":
-			state.config.InputVarCol = color
+			state.config.InputVarCol = color.String()
 			return ungo.None[error]()
 		case "input-brace":
-			state.config.InputBraceCol = color
+			state.config.InputBraceCol = color.String()
 			return ungo.None[error]()
 		case "ghost":
-			state.config.GhostCol = color
+			state.config.GhostCol = color.String()
 			return ungo.None[error]()
 		case "workspace":
-			state.config.WorkspaceNameCol = color
+			state.config.WorkspaceNameCol = color.String()
 			return ungo.None[error]()
 		}
 
