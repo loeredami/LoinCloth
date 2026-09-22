@@ -142,7 +142,7 @@ func Lex(input string) *ungo.LinkedList[Token] {
 				if unicode.IsDigit(rune(state.input[0])) {
 					tokenType := Number
 					var builder strings.Builder
-					for !state.IsDone() && (unicode.IsLetter(rune(state.input[0])) || unicode.IsDigit(rune(state.input[0]))) {
+					for !state.IsDone() && (unicode.IsLetter(rune(state.input[0])) || unicode.IsDigit(rune(state.input[0])) || state.input[0] == ';') {
 						if unicode.IsLetter(rune(state.input[0])) {
 							tokenType = Identifier
 						}

@@ -252,8 +252,16 @@ other strings:
   * `sudo-prompt`
   * `scope-sign`
 
-`!color <color field> <int>` - Lets' you replace a color
-`!color input 32` - Set's your input text to Green.
+`!color <color field> <int> [<int> ...]` - Replaces a color with one or more ANSI color codes.
+Each code is emitted as a separate ANSI sequence, so you can combine attributes such as bold,
+foreground color, and background color. Codes can also be grouped with semicolons.
+
+```sh
+!color input 32
+!color prompt "1;37" 44
+```
+
+The second example sets the prompt to bold (`1`), white foreground (`37`), and background (`44`).
 
 color fields:
   * `input`
@@ -278,6 +286,7 @@ color fields:
   * `input-var`
   * `input-brace`
   * `ghost`
+  * `workspace`
 
   
 `!disable-colors` - Disables color rendering, good for very old machines.
