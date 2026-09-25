@@ -3,7 +3,7 @@
 APP_NAME="loin"
 BUILD_DIR="builds"
 
-mkdir -p $BUILD_DIR
+mkdir -p "$BUILD_DIR"
 
 targets=(
     "linux/amd64"
@@ -28,7 +28,7 @@ for target in "${targets[@]}"; do
 
     echo "Building for $OS ($ARCH)..."
 
-    env GOOS=$OS GOARCH=$ARCH go build -o "${BUILD_DIR}/${OUTPUT_NAME}" .
+    env GOOS="$OS" GOARCH="$ARCH" go build -o "${BUILD_DIR}/${OUTPUT_NAME}" .
 
     if [ $? -ne 0 ]; then
         echo "Error: Build failed for $target"
