@@ -4,7 +4,35 @@ LoinCloth is a shell program, built for project management and multi tasking.
 
 You can create multiple workspaces, and scopes which each hold their own aliases.
 
-You can create and load in .cloth scripts, to load in scope and aliases.
+You can create and load in `.cloth` scripts to load scopes and aliases.
+
+## Current version: v1.4.1 pre-release
+
+This release includes:
+
+- Pasted multi-command input without dropping lines after the first newline.
+- Fish-style multiline input using a trailing `\\`.
+- Pipelines with `|`.
+- Output redirection with `>` and `>>`.
+- Input redirection with `<`.
+- Mixed pipelines containing external commands and supported internal commands.
+- Nested brace expressions that use the pipeline parser.
+- Unicode-aware prompt redraw behavior for wide characters and emoji.
+
+See [`SHELL_OPERATORS.md`](SHELL_OPERATORS.md) for interactive input and shell operator details, and [`ROADMAP.md`](ROADMAP.md) for current development status.
+
+### Pre-release binaries
+
+The `builds/` directory contains binaries for Linux, macOS, and Windows. The packaged pre-release artifacts are:
+
+- `loincloth-v1.4.1-prelease.tar.gz`
+- `loincloth-v1.4.1-prelease.tar.gz.sha256`
+
+Verify the archive checksum with:
+
+```sh
+sha256sum -c loincloth-v1.4.1-prelease.tar.gz.sha256
+```
 
 # MAC OS Support
 Mac os is not supported however binaries will be released, and pull requests for fixes on that platform are welcomed.
@@ -235,7 +263,7 @@ Ghost input appears as you are typing commands or known variables, press the rig
 To add syntax highligting for .cloth files in vscode, download the source code, and copy the "cloth-syntax" folder into your vscode extensions folder. `~/.vscode/extensions`
 
 # Configuration
-When launching into version Pre-Release 1.2 or newer, you will have created a "default.cloth", in your OS's user configuration folder.
+Since Pre-Release 1.2, LoinCloth creates a `default.cloth` file in your OS's user configuration folder.
 
 Edit "/path/to/user/config/.loin/default.cloth", on linux this for example is:
 `~/.config/.loin/default.cloth`
