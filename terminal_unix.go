@@ -3,6 +3,7 @@
 package main
 
 import (
+	"io"
 	"syscall"
 	"unsafe"
 )
@@ -11,7 +12,7 @@ const (
 	is_windows = false
 )
 
-func RunWinCommands(args []string) bool { return false }
+func RunWinCommands(args []string, w io.Writer) bool { return false }
 
 func InitTerminal() {}
 

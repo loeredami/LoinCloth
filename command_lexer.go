@@ -19,6 +19,10 @@ const (
 	Varname
 	OpenBrace
 	CloseBrace
+	Pipe
+	RedirectOut
+	RedirectAppend
+	RedirectIn
 )
 
 type Token struct {
@@ -52,6 +56,30 @@ func Lex(input string) *ungo.LinkedList[Token] {
 					for !state.IsDone() && unicode.IsSpace(rune(state.input[0])) {
 						state.input = state.input[1:]
 					}
+				}
+				return state
+			},
+
+			// Shell operators
+			func(state *LexState) *LexState {
+				if state.IsDone() {
+					return state
+				}
+				switch state.input[0] {
+				case '|':
+					state.tokens.Add(Token{Pipe, ungo.Some("|")})
+					state.input = state.input[1:]
+				case '>':
+					if len(state.input) > 1 && state.input[1] == '>' {
+						state.tokens.Add(Token{RedirectAppend, ungo.Some(">>")})
+						state.input = state.input[2:]
+					} else {
+						state.tokens.Add(Token{RedirectOut, ungo.Some(">")})
+						state.input = state.input[1:]
+					}
+				case '<':
+					state.tokens.Add(Token{RedirectIn, ungo.Some("<")})
+					state.input = state.input[1:]
 				}
 				return state
 			},

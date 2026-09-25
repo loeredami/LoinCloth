@@ -69,14 +69,23 @@ func (state *State) findWordBoundaryRight(buffer []rune, cursor int) int {
 
 func readRawInput(state *State, promptStr string) string {
 	var buffer []rune
+	var commandPrefix strings.Builder
 	cursor := 0
 	historyIdx := len(state.history)
+	activePrompt := promptStr
 
 	b := make([]byte, 1024)
 	for {
-		n, err := os.Stdin.Read(b)
-		if n == 0 || err != nil {
-			continue
+		var n int
+		if state.pendingInput != "" {
+			n = copy(b, state.pendingInput)
+			state.pendingInput = ""
+		} else {
+			var err error
+			n, err = os.Stdin.Read(b)
+			if n == 0 || err != nil {
+				continue
+			}
 		}
 
 		needsRefresh := false
@@ -90,12 +99,40 @@ func readRawInput(state *State, promptStr string) string {
 
 			switch char {
 			case 13, 10: // Enter
-				input := strings.TrimSpace(string(buffer))
-				if input != "" && (len(state.history) == 0 || state.history[len(state.history)-1] != input) {
-					state.history = append(state.history, input)
+				// A trailing backslash joins the next physical line, like fish.
+				// Remove the continuation marker rather than passing it to the lexer.
+				if cursor == len(buffer) && cursor > 0 && buffer[cursor-1] == '\\' {
+					// Preserve the completed physical line above the continuation
+					// prompt, while keeping only the new physical line editable.
+					commandPrefix.WriteString(string(buffer[:cursor-1]))
+					commandPrefix.WriteByte('\n')
+					buffer = buffer[:0]
+					cursor = 0
+					state.ghostSuggestion = ""
+					activePrompt = "> "
+					fmt.Print("\r\n")
+					state.lastRowCount = 1
+					state.RefreshLine(activePrompt, buffer, cursor)
+					needsRefresh = false
+					if char == 13 && i+1 < n && b[i+1] == 10 {
+						i++
+					}
+					continue
+				}
+
+				command := strings.TrimSpace(commandPrefix.String() + string(buffer))
+				if command != "" && (len(state.history) == 0 || state.history[len(state.history)-1] != command) {
+					state.history = append(state.history, command)
+				}
+				// Keep commands after this newline so a multi-line paste is not lost.
+				if i+1 < n {
+					state.pendingInput = string(b[i+1 : n])
+				}
+				if char == 13 && i+1 < n && b[i+1] == 10 {
+					state.pendingInput = strings.TrimPrefix(state.pendingInput, "\n")
 				}
 				fmt.Print("\r\n")
-				return input
+				return command
 
 			case 127, 8: // Backspace
 				if cursor > 0 {
@@ -403,6 +440,12 @@ func (state *State) updateGhostSuggestion(buffer []rune) {
 	line := string(buffer)
 
 	for i := len(state.history) - 1; i >= 0; i-- {
+		// A multiline history entry must not be inserted as a ghost suggestion:
+		// its embedded newlines would make the renderer appear to keep adding
+		// physical lines while the user is typing.
+		if strings.ContainsAny(state.history[i], "\r\n") {
+			continue
+		}
 		if strings.HasPrefix(state.history[i], line) && state.history[i] != line {
 			state.ghostSuggestion = state.history[i][len(line):]
 			return

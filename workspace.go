@@ -32,6 +32,10 @@ type State struct {
 	ghostSuggestion string
 	lastRowCount    int
 
+	// pendingInput stores complete commands that arrived after a newline in
+	// the same paste operation. They are consumed by the next prompt.
+	pendingInput string
+
 	config Configuration
 }
 
