@@ -89,6 +89,10 @@ func (store TrustStore) Entries() []TrustEntry {
 	return append([]TrustEntry(nil), store.entries...)
 }
 
+func (store TrustStore) Clone() TrustStore {
+	return TrustStore{entries: store.Entries()}
+}
+
 func (store *TrustStore) Remove(entry TrustEntry) bool {
 	for i, existing := range store.entries {
 		if existing == entry {

@@ -67,6 +67,46 @@ func TestTrustPromptAddToAllowListPersistsExactPath(t *testing.T) {
 	}
 }
 
+func TestTrustCommandRequiresExplicitConfirmation(t *testing.T) {
+	withPromptInput(t, "no")
+	state := &State{
+		commandSource:    SourceInteractive,
+		interactiveInput: true,
+		trustStorePath:   filepath.Join(t.TempDir(), "trust.json"),
+	}
+	if result := HandleStateCommands(state, []string{"!trust", "/usr/bin/example"}); result.HasValue() {
+		t.Fatalf("declining confirmation returned error: %v", result.Value())
+	}
+	if len(state.trustStore.Entries()) != 0 {
+		t.Fatalf("declined trust entry was stored: %#v", state.trustStore.Entries())
+	}
+	if _, err := os.Stat(state.trustStorePath); !os.IsNotExist(err) {
+		t.Fatalf("declined trust created store file, stat error: %v", err)
+	}
+}
+
+func TestTrustCommandPersistsOnlyAfterConfirmation(t *testing.T) {
+	withPromptInput(t, "yes")
+	state := &State{
+		commandSource:    SourceInteractive,
+		interactiveInput: true,
+		trustStorePath:   filepath.Join(t.TempDir(), "trust.json"),
+	}
+	if result := HandleStateCommands(state, []string{"!trust", "/usr/bin/example"}); result.HasValue() {
+		t.Fatalf("confirmed trust command returned error: %v", result.Value())
+	}
+	if !state.trustStore.Allows("/usr/bin/example") {
+		t.Fatal("confirmed trust rule was not stored in state")
+	}
+	loaded, err := LoadTrustStore(state.trustStorePath)
+	if err != nil {
+		t.Fatalf("load confirmed trust store: %v", err)
+	}
+	if !loaded.Allows("/usr/bin/example") {
+		t.Fatal("confirmed trust rule was not persisted")
+	}
+}
+
 func TestTrustPromptRejectsOtherChoice(t *testing.T) {
 	withPromptInput(t, "3")
 	state := &State{}

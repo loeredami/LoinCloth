@@ -49,7 +49,7 @@ The trust list controls whether an external executable may run without explicit 
 - [x] Add interactive `Run Once` / `Add command to allow list` / `Do not run` approval handling.
 - [x] Deny unknown non-interactive external commands before launch.
 - [x] Require approval for commands sourced from non-default `.cloth` files, even when their executable is trusted.
-- [ ] Add an explicit confirmation step before persisting trust from `!trust`.
+- [x] Add an explicit confirmation step before persisting trust from `!trust`.
 - [ ] Define the default policy: deny external executables unless they are trusted or the command is explicitly elevated with `sudo`.
 - [ ] Define a native-command policy separate from workspace commands.
 - [ ] Allow explicitly approved native operating-system commands to run under the native-command policy.

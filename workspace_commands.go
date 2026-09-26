@@ -109,8 +109,16 @@ func init() {
 			return ungo.Some(fmt.Errorf("workspace commands cannot be trusted as executables"))
 		}
 		kind, rule := ParseTrustRule(command[1])
+		fmt.Fprintf(os.Stderr, "Add trust rule %q (kind %d)? [y/N]: ", rule, kind)
+		var confirmation string
+		if _, err := fmt.Fscanln(os.Stdin, &confirmation); err != nil || !strings.EqualFold(confirmation, "y") && !strings.EqualFold(confirmation, "yes") {
+			fmt.Fprintln(os.Stderr, "trust entry not added")
+			return ungo.None[error]()
+		}
+
 		entry := TrustEntry{Rule: rule, Kind: kind, Source: SourceInteractive}
-		state.trustStore.Add(entry)
+		candidate := state.trustStore.Clone()
+		candidate.Add(entry)
 		if state.trustStorePath == "" {
 			path, err := DefaultTrustStorePath()
 			if err != nil {
@@ -118,9 +126,10 @@ func init() {
 			}
 			state.trustStorePath = path
 		}
-		if err := SaveTrustStore(state.trustStorePath, state.trustStore); err != nil {
+		if err := SaveTrustStore(state.trustStorePath, candidate); err != nil {
 			return ungo.Some(fmt.Errorf("failed to save trust store: %v", err))
 		}
+		state.trustStore = candidate
 		fmt.Printf("trusted %s (%d)\n", rule, kind)
 		return ungo.None[error]()
 	})
@@ -148,12 +157,21 @@ func init() {
 			return ungo.Some(fmt.Errorf("expected executable path, basename, or explicit glob"))
 		}
 		kind, rule := ParseTrustRule(command[1])
-		if !state.trustStore.RemoveRule(kind, rule) {
+		candidate := state.trustStore.Clone()
+		if !candidate.RemoveRule(kind, rule) {
 			return ungo.Some(fmt.Errorf("trust entry not found: %s", rule))
 		}
-		if err := SaveTrustStore(state.trustStorePath, state.trustStore); err != nil {
+		if state.trustStorePath == "" {
+			path, err := DefaultTrustStorePath()
+			if err != nil {
+				return ungo.Some(err)
+			}
+			state.trustStorePath = path
+		}
+		if err := SaveTrustStore(state.trustStorePath, candidate); err != nil {
 			return ungo.Some(fmt.Errorf("failed to save trust store: %v", err))
 		}
+		state.trustStore = candidate
 		fmt.Printf("removed trust entry %s\n", rule)
 		return ungo.None[error]()
 	})

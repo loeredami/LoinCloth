@@ -128,6 +128,7 @@ The following foundations exist:
 - Trust-rule matching for exact paths, basenames, and explicit globs.
 - Versioned persistent trust-store prototype with validation and atomic writes.
 - Direct-interactive trust management commands: `!trust`, `!trust-list`, and `!untrust`.
+- `!trust` requires a separate interactive confirmation before persisting a rule; declining does not modify the store.
 - Launch-time checks for standalone external commands and external stages in pipelines.
 - Interactive approval choices: Run Once, Add command to allow list, or Do not run. Prompts are written to stderr so they do not become redirected command output.
 - Unknown non-interactive external commands are denied before launch.
