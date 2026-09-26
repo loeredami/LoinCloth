@@ -292,7 +292,7 @@ func init() {
 		lines := strings.Split(string(data), "\n")
 
 		for _, line := range lines {
-			RunString(state, line)
+			RunStringFromSource(state, line, SourceClothFile)
 		}
 
 		return ungo.None[error]()

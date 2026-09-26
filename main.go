@@ -764,10 +764,27 @@ func runPipeline(state *State, commands []PipelineCommand, output io.Writer) {
 }
 
 func RunString(state *State, input string) {
-	RunStringTo(state, input, os.Stdout)
+	RunStringFromSource(state, input, SourceInteractive)
+}
+
+func RunStringFromSource(state *State, input string, source CommandSource) {
+	RunStringToSource(state, input, os.Stdout, source)
 }
 
 func RunStringTo(state *State, input string, output io.Writer) {
+	RunStringToSource(state, input, output, SourceInteractive)
+}
+
+func RunStringToSource(state *State, input string, output io.Writer, source CommandSource) {
+	previousSource := SourceInteractive
+	if state != nil {
+		previousSource = state.commandSource
+		state.commandSource = source
+		defer func() {
+			state.commandSource = previousSource
+		}()
+	}
+
 	tokens := Lex(input)
 	tokenSlice := []Token{}
 	tokens.ForEach(func(idx int, token Token) {
@@ -899,10 +916,15 @@ func ReadConfiguration(state *State) {
 		return
 	}
 
+	source := SourceDefaultCloth
+	if state.configPath != "" {
+		source = SourceDevelopmentCloth
+	}
+
 	lines := strings.Split(string(data), "\n")
 	for _, line := range lines {
 		if strings.TrimSpace(line) != "" {
-			RunString(state, line)
+			RunStringFromSource(state, line, source)
 		}
 	}
 }

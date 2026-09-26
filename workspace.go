@@ -41,6 +41,10 @@ type State struct {
 	// configPath is an optional startup-selected .cloth file. An empty value
 	// keeps the normal per-user default.cloth behavior.
 	configPath string
+
+	// commandSource identifies where the currently executing command came from.
+	// It is the foundation for trust and gray-list decisions.
+	commandSource CommandSource
 }
 
 func (ws *Workspace) Encode() []byte {
