@@ -123,14 +123,16 @@ func validateProtectedHandle(handle syscall.Handle, expectDirectory bool, ownerS
 		return fmt.Errorf("reparse points are not allowed")
 	}
 
-	var owner, dacl, descriptor uintptr
+	var descriptor uintptr
 	result, _, _ := procGetSecurityInfo.Call(
 		uintptr(handle), seFileObject, ownerSecurityInfo|daclSecurityInfo,
-		uintptr(unsafe.Pointer(&owner)), 0, uintptr(unsafe.Pointer(&dacl)), 0,
-		uintptr(unsafe.Pointer(&descriptor)),
+		0, 0, 0, 0, uintptr(unsafe.Pointer(&descriptor)),
 	)
 	if result != 0 {
 		return syscall.Errno(result)
+	}
+	if descriptor == 0 {
+		return fmt.Errorf("Windows returned an empty security descriptor")
 	}
 	defer freeLocalMemory(syscall.Handle(descriptor))
 
@@ -140,7 +142,7 @@ func validateProtectedHandle(handle syscall.Handle, expectDirectory bool, ownerS
 	if ok == 0 {
 		return fmt.Errorf("read security descriptor owner: %w", callErr)
 	}
-	if !sidEqual(descriptorOwner, ownerSID) {
+	if descriptorOwner == 0 || !sidEqual(descriptorOwner, ownerSID) {
 		return fmt.Errorf("owner is not the current user")
 	}
 

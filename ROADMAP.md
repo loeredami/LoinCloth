@@ -282,7 +282,7 @@ The trust list controls whether an external executable may run without explicit 
   - [x] Run the Windows amd64 build under Wine with piped `echo`, `mkdir`, and `rm` commands; verify the temporary directory is removed.
 - [x] Exercise default-config startup under Wine and verify an Everyone-accessible config directory falls back to gray-listing.
 - [x] Run Windows ACE-policy and SID-matching tests under Wine.
-- [x] Run the full Windows Go test suite under Wine after fixing forward-slash executable path classification.
+- [x] Run the Windows Go test suite under Wine after fixing forward-slash executable path classification; note that Unix-utility-dependent tests and accepted-private-ACL integration skip under Wine.
 - [ ] Expand Wine coverage for command parsing, pipelines, redirections, `.cloth` loading, and additional Windows built-ins.
 - [ ] Use Wine to verify argument preservation, working-directory handling, stderr behavior, and exit codes.
 - [ ] Keep Wine tests separate from native Windows administrator tests.
