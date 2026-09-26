@@ -99,7 +99,7 @@ func GetEnvValue(state *State, key string) ungo.Optional[[]string] {
 
 func init() {
 	RegisterCmd("!trust", func(state *State, command []string) ungo.Optional[error] {
-		if state.commandSource != SourceInteractive {
+		if state.commandSource != SourceInteractive || !state.interactiveInput {
 			return ungo.Some(fmt.Errorf("!trust requires direct interactive input"))
 		}
 		if len(command) < 2 {
@@ -126,7 +126,7 @@ func init() {
 	})
 
 	RegisterCmd("!trust-list", func(state *State, command []string) ungo.Optional[error] {
-		if state.commandSource != SourceInteractive {
+		if state.commandSource != SourceInteractive || !state.interactiveInput {
 			return ungo.Some(fmt.Errorf("!trust-list requires direct interactive input"))
 		}
 		entries := state.trustStore.Entries()
@@ -141,7 +141,7 @@ func init() {
 	})
 
 	RegisterCmd("!untrust", func(state *State, command []string) ungo.Optional[error] {
-		if state.commandSource != SourceInteractive {
+		if state.commandSource != SourceInteractive || !state.interactiveInput {
 			return ungo.Some(fmt.Errorf("!untrust requires direct interactive input"))
 		}
 		if len(command) < 2 {

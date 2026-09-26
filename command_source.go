@@ -7,6 +7,7 @@ const (
 	SourceDefaultCloth
 	SourceClothFile
 	SourceDevelopmentCloth
+	SourceNonInteractive
 )
 
 func (source CommandSource) String() string {
@@ -19,6 +20,8 @@ func (source CommandSource) String() string {
 		return ".cloth"
 	case SourceDevelopmentCloth:
 		return "development .cloth"
+	case SourceNonInteractive:
+		return "non-interactive input"
 	default:
 		return "unknown"
 	}

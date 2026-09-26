@@ -111,10 +111,10 @@ go build .
 ./build_all.sh
 ```
 
-The normal smoke test should also exercise the development launcher:
+The normal smoke test should also exercise the development launcher, including allowed internal commands and expected non-interactive external-command denial:
 
 ```sh
-printf '%s\n' 'echo dev' 'printf "zulu\nalpha\n" | sort' | ./run_dev.sh
+printf '%s\n' 'ls' 'echo external-command-is-denied-unless-trusted' | ./run_dev.sh
 ```
 
 `run_dev.sh` creates `loin-dev`. Remove that generated artifact before committing if it is not ignored.
@@ -128,23 +128,26 @@ The following foundations exist:
 - Trust-rule matching for exact paths, basenames, and explicit globs.
 - Versioned persistent trust-store prototype with validation and atomic writes.
 - Direct-interactive trust management commands: `!trust`, `!trust-list`, and `!untrust`.
-- Pure trust decision policy:
-  - Trusted executable: allow.
-  - `default.cloth`: allow under the current prototype policy.
-  - Unknown interactive command: prompt.
-  - Unknown non-interactive command: deny.
+- Launch-time checks for standalone external commands and external stages in pipelines.
+- Interactive approval choices: Run Once, Add command to allow list, or Do not run. Prompts are written to stderr so they do not become redirected command output.
+- Unknown non-interactive external commands are denied before launch.
+- Non-default `.cloth` commands are gray-listed and require interactive approval, even if the executable itself is trusted.
+- Piped stdin is marked non-interactive; it cannot run trust-management commands or approve executables.
+- Trust checks happen before single-command redirection files are created or truncated.
+- `default.cloth` commands are currently exempt from executable trust checks.
 
 The following are not complete:
 
-- Trust prompt integration with actual command launching.
-- Gray-list approval for non-default `.cloth` files.
+- Explicit confirmation when using `!trust` to add a persistent rule.
+- Native-command policy and comprehensive review/testing for every mixed/internal pipeline path.
+- Ownership and permission validation for the exempt `default.cloth`.
 - `!toggle-security` and `!wear-ns`.
 - `!access-administrator` and `!exit-administrator`.
 - Unix `sudo` delegation.
 - Windows UAC `runas` handling.
 - Protected `default.cloth` process/file-access monitoring.
 
-Do not describe the current prototype as a complete security boundary. The trust policy is not yet wired into all process launches.
+Do not describe the current prototype as a complete security boundary. Native-command policy, source-context edge cases, default configuration ownership/permission validation, and privilege elevation are still incomplete.
 
 ## Security design principles
 

@@ -647,6 +647,16 @@ func runPipeline(state *State, commands []PipelineCommand, output io.Writer) {
 	}
 	if len(commands) == 1 {
 		command := commands[0]
+		if !isPipelineInternal(command.args[0]) {
+			path, err := exec.LookPath(command.args[0])
+			if err != nil {
+				fmt.Fprintf(output, "%sCommand not found: %s%s\n", state.GetColor(state.config.ErrorCol), command.args[0], state.Reset())
+				return
+			}
+			if !authorizeExecutable(state, path, output) {
+				return
+			}
+		}
 		var stdin io.Reader = os.Stdin
 		var inputFile *os.File
 		if command.stdinPath != "" {
@@ -664,7 +674,7 @@ func runPipeline(state *State, commands []PipelineCommand, output io.Writer) {
 			stdin = inputFile
 		}
 		if command.stdoutPath == "" {
-			runWithStdin(state, command.args, output, stdin)
+			runWithStdinApproved(state, command.args, output, stdin)
 			return
 		}
 		flags := os.O_CREATE | os.O_WRONLY
@@ -679,7 +689,7 @@ func runPipeline(state *State, commands []PipelineCommand, output io.Writer) {
 			return
 		}
 		defer file.Close()
-		runWithStdin(state, command.args, file, stdin)
+		runWithStdinApproved(state, command.args, file, stdin)
 		return
 	}
 
@@ -687,6 +697,16 @@ func runPipeline(state *State, commands []PipelineCommand, output io.Writer) {
 		if len(command.args) == 0 {
 			fmt.Fprintf(output, "%sempty command in pipeline%s\n", state.GetColor(state.config.ErrorCol), state.Reset())
 			return
+		}
+		if !isPipelineInternal(command.args[0]) {
+			path, err := exec.LookPath(command.args[0])
+			if err != nil {
+				fmt.Fprintf(output, "%sCommand not found: %s%s\n", state.GetColor(state.config.ErrorCol), command.args[0], state.Reset())
+				return
+			}
+			if !authorizeExecutable(state, path, output) {
+				return
+			}
 		}
 		if isPipelineInternal(command.args[0]) ||
 			(i < len(commands)-1 && command.stdoutPath != "") || (i > 0 && command.stdinPath != "") {
@@ -807,6 +827,14 @@ func Run(state *State, cmdArgs []string, w io.Writer) {
 }
 
 func runWithStdin(state *State, cmdArgs []string, w io.Writer, stdin io.Reader) {
+	runWithStdinPolicy(state, cmdArgs, w, stdin, true)
+}
+
+func runWithStdinApproved(state *State, cmdArgs []string, w io.Writer, stdin io.Reader) {
+	runWithStdinPolicy(state, cmdArgs, w, stdin, false)
+}
+
+func runWithStdinPolicy(state *State, cmdArgs []string, w io.Writer, stdin io.Reader, checkTrust bool) {
 	if len(cmdArgs) == 0 {
 		return
 	}
@@ -844,6 +872,9 @@ func runWithStdin(state *State, cmdArgs []string, w io.Writer, stdin io.Reader) 
 			return
 		}
 
+		if checkTrust && !authorizeExecutable(state, cmdPath, w) {
+			return
+		}
 		c := exec.Command(cmdPath, cmdArgs[1:]...)
 		c.Stdout = w
 		c.Stdin = stdin
@@ -967,7 +998,7 @@ func RunNonInteractive(state *State) {
 			return
 		}
 		if input != "" {
-			RunString(state, input)
+			RunStringFromSource(state, input, SourceNonInteractive)
 		}
 	}
 }
@@ -994,6 +1025,9 @@ func main() {
 		scopes: ungo.NewLinkedList[*Scope](),
 	})
 
+	if info, err := os.Stdin.Stat(); err == nil {
+		state.interactiveInput = info.Mode()&os.ModeCharDevice != 0
+	}
 	state.configPath = *selectedCloth
 	state.ResetConfig()
 	InitializeTrustStore(state)

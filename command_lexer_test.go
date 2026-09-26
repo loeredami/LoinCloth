@@ -136,7 +136,7 @@ func TestParsePipelineRejectsRedirectionWithoutStage(t *testing.T) {
 }
 
 func TestParsePipelineExecutesNestedBraceExpression(t *testing.T) {
-	commands, err := parsePipeline(nil, lexTokens(`echo { echo nested }`))
+	commands, err := parsePipeline(testTrustedState(t, "echo"), lexTokens(`echo { echo nested }`))
 	if err != nil {
 		t.Fatalf("parsePipeline returned error: %v", err)
 	}

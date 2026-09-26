@@ -45,7 +45,11 @@ Security changes should not begin until the existing parser and interactive-inpu
 The trust list controls whether an external executable may run without explicit elevation. It is an execution-authorization layer, not an administrator grant. Security decisions must also know where a command came from: direct interactive input, `default.cloth`, or another `.cloth` file.
 
 - [x] Define the initial trust decision engine: trusted and `default.cloth` commands are allowed, interactive unknown commands prompt, and non-interactive unknown commands are denied.
-- [ ] Wire trust decisions into external command launch and the interactive approval prompt.
+- [x] Wire trust decisions into standalone external command launch and every external pipeline stage.
+- [x] Add interactive `Run Once` / `Add command to allow list` / `Do not run` approval handling.
+- [x] Deny unknown non-interactive external commands before launch.
+- [x] Require approval for commands sourced from non-default `.cloth` files, even when their executable is trusted.
+- [ ] Add an explicit confirmation step before persisting trust from `!trust`.
 - [ ] Define the default policy: deny external executables unless they are trusted or the command is explicitly elevated with `sudo`.
 - [ ] Define a native-command policy separate from workspace commands.
 - [ ] Allow explicitly approved native operating-system commands to run under the native-command policy.
@@ -70,19 +74,19 @@ The trust list controls whether an external executable may run without explicit 
   ```
 - [x] Restrict `!trust` to native/external executable targets; reject targets beginning with `!`.
 - [ ] Add confirmation prompts before persisting trust entries.
-- [ ] Ensure commands loaded from non-default `.cloth` files cannot silently create trusted entries.
+- [x] Ensure commands loaded from non-default `.cloth` files cannot silently create trusted entries.
 - [ ] Define gray-list inspection, approval, revocation, and audit output.
 - [ ] Propagate command source through nested `!wear` loads so commands retain their original file context.
-- [ ] Treat commands loaded from non-default `.cloth` files as gray-listed rather than trusted.
-- [ ] Prompt when a command is not trusted or is gray-listed:
+- [x] Treat commands loaded from non-default `.cloth` files as gray-listed rather than trusted.
+- [x] Prompt when a command is not trusted or is gray-listed:
   1. `Run Once` — execute this invocation without creating a persistent trust entry.
-  2. `Add command to allow list` — persist an explicit trust entry after confirmation.
+  2. `Add command to allow list` — persist an explicit trust entry.
   3. `Do not run` — deny the invocation.
-- [ ] Define whether gray-listed files require one prompt per command or one approval for the complete file; default to per-command approval for safety.
-- [ ] Apply the same approval decision independently to each external stage in a pipeline.
+- [x] Prompt once per external command stage from a gray-listed source.
+- [x] Apply the same approval decision independently to each external stage in a pipeline.
 - [ ] Never prompt for a password or treat this approval as administrator authorization.
-- [ ] Default to `Do not run` when no interactive terminal is available.
-- [ ] Treat commands loaded from `default.cloth` as exempt from the external trusted-list check, while still applying parsing and safety checks.
+- [x] Default to `Do not run` when no interactive terminal is available.
+- [x] Treat commands loaded from `default.cloth` as exempt from the external trusted-list check, while still applying parsing and safety checks.
 - [ ] Ensure only `default.cloth` may use `!toggle-security` during configuration loading.
 - [ ] Define how security state is restored after a `default.cloth` or gray-listed file finishes loading.
 - [ ] Define matching semantics before implementation:

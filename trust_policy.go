@@ -28,6 +28,12 @@ func EvaluateTrust(store TrustStore, executablePath string, source CommandSource
 	if source == SourceDefaultCloth {
 		return TrustAllow
 	}
+	if source == SourceClothFile || source == SourceDevelopmentCloth {
+		if !interactive {
+			return TrustDeny
+		}
+		return TrustPrompt
+	}
 	if store.Allows(executablePath) {
 		return TrustAllow
 	}

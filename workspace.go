@@ -46,8 +46,9 @@ type State struct {
 	// It is the foundation for trust and gray-list decisions.
 	commandSource CommandSource
 
-	trustStore     TrustStore
-	trustStorePath string
+	trustStore       TrustStore
+	trustStorePath   string
+	interactiveInput bool
 }
 
 func (ws *Workspace) Encode() []byte {
