@@ -918,7 +918,8 @@ func runWithStdinPolicy(state *State, cmdArgs []string, w io.Writer, stdin io.Re
 
 func ReadConfiguration(state *State) {
 	configFilePath := state.configPath
-	if configFilePath == "" {
+	isDefaultConfig := configFilePath == ""
+	if isDefaultConfig {
 		path, err := os.UserConfigDir()
 		if err != nil {
 			fmt.Printf("Could not find User config directory.\n")
@@ -926,14 +927,14 @@ func ReadConfiguration(state *State) {
 		}
 
 		path = filepath.Join(path, ".loin")
-		err = os.MkdirAll(path, 0755)
+		err = os.MkdirAll(path, 0700)
 		if err != nil {
 			fmt.Printf("Error creating configuration directory: %v\n", err)
 			return
 		}
 
 		configFilePath = filepath.Join(path, "default.cloth")
-		f, err := os.OpenFile(configFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		f, err := os.OpenFile(configFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 		if err != nil {
 			fmt.Printf("Error ensuring configuration file exists: %v\n", err)
 			return
@@ -941,15 +942,23 @@ func ReadConfiguration(state *State) {
 		f.Close()
 	}
 
-	data, err := os.ReadFile(configFilePath)
+	source := configurationCommandSource(isDefaultConfig, false)
+	var data []byte
+	var err error
+	if isDefaultConfig {
+		data, err = readProtectedDefaultCloth(configFilePath)
+		if err == nil {
+			source = configurationCommandSource(true, true)
+		} else {
+			fmt.Printf("Warning: default.cloth is not trusted (%v); treating its commands as gray-listed.\n", err)
+			data, err = readDefaultCloth(configFilePath)
+		}
+	} else {
+		data, err = os.ReadFile(configFilePath)
+	}
 	if err != nil {
 		fmt.Printf("Error reading configuration: %v\n", err)
 		return
-	}
-
-	source := SourceDefaultCloth
-	if state.configPath != "" {
-		source = SourceDevelopmentCloth
 	}
 
 	lines := strings.Split(string(data), "\n")
