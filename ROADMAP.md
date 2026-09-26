@@ -259,6 +259,16 @@ The trust list controls whether an external executable may run without explicit 
 - [ ] Ensure errors never include passwords, tokens, or sensitive environment values.
 - [ ] Document the trust boundary between the parent shell and elevated child.
 
+### Cross-platform test environments
+
+- [ ] Add a Wine-based Windows smoke-test environment for Linux development.
+- [ ] Run the Windows amd64 build under Wine for command parsing, pipelines, redirections, `.cloth` loading, and Windows built-in behavior.
+- [ ] Use Wine to verify executable startup, argument preservation, working-directory handling, stdout/stderr behavior, and exit codes.
+- [ ] Keep Wine tests separate from native Windows administrator tests.
+- [ ] Do not treat Wine as proof of Windows administrator membership, access-token elevation, UAC prompts, or `runas` behavior.
+- [ ] Add native Windows CI or manual verification for token classification, UAC approval, UAC cancellation, and elevated child-process behavior.
+- [ ] Document required Wine version, prefix setup, and any unsupported security behaviors.
+
 ### Verification
 
 - [ ] Add Unix tests using fake sudo executables and controlled PATH values.
