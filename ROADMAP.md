@@ -135,6 +135,8 @@ The trust list controls whether an external executable may run without explicit 
 
 - [ ] Keep the security trust list separate from workspace scopes by default.
 - [ ] Use a dedicated persistent trust store with explicit ownership and restrictive permissions.
+- [x] Add an isolated versioned trust-store persistence prototype with validation, restrictive temporary-file permissions, atomic replacement, and removal support.
+- [ ] Integrate the persistent store with `!trust`, inspection, revocation, and command authorization.
 - [ ] Consider optional scope-local, temporary trust entries only as an isolated future feature.
 - [ ] Do not store executable trust entries in `.cloth` files, because those files can be loaded from untrusted projects.
 - [ ] Document that scopes manage environment overrides and workspace state, not security authorization.
