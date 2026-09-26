@@ -39,6 +39,10 @@ func (ls LexState) IsDone() bool {
 	return len(ls.input) == 0
 }
 
+func isEscapedShellCharacter(r byte) bool {
+	return strings.ContainsRune("|><{}$#\\", rune(r))
+}
+
 func Lex(input string) *ungo.LinkedList[Token] {
 	lexState := LexState{
 		tokens: ungo.NewLinkedList[Token](),
@@ -106,6 +110,9 @@ func Lex(input string) *ungo.LinkedList[Token] {
 				}
 
 				r := state.input[0]
+				if r == '\\' && len(state.input) > 1 && isEscapedShellCharacter(state.input[1]) {
+					return state
+				}
 				if r == '/' || r == '\\' || r == '~' || r == '.' || r == '*' {
 					var builder strings.Builder
 					for !state.IsDone() {
@@ -113,6 +120,11 @@ func Lex(input string) *ungo.LinkedList[Token] {
 
 						if curr == '\\' && len(state.input) > 1 && state.input[1] == ' ' {
 							builder.WriteByte(' ')
+							state.input = state.input[2:]
+							continue
+						}
+						if curr == '\\' && len(state.input) > 1 && isEscapedShellCharacter(state.input[1]) {
+							builder.WriteByte(state.input[1])
 							state.input = state.input[2:]
 							continue
 						}
@@ -149,8 +161,13 @@ func Lex(input string) *ungo.LinkedList[Token] {
 							state.input = state.input[2:]
 							continue
 						}
+						if curr == '\\' && len(state.input) > 1 && isEscapedShellCharacter(state.input[1]) {
+							builder.WriteByte(state.input[1])
+							state.input = state.input[2:]
+							continue
+						}
 
-						if unicode.IsSpace(rune(curr)) || curr == '{' || curr == '}' {
+						if unicode.IsSpace(rune(curr)) || curr == '{' || curr == '}' || strings.ContainsRune("|><", rune(curr)) {
 							break
 						}
 

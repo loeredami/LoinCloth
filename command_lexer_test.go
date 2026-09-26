@@ -23,11 +23,11 @@ func TestLexShellOperators(t *testing.T) {
 		Pipe,
 		Identifier,
 		RedirectOut,
-		Path,
+		Identifier,
 		RedirectAppend,
-		Path,
+		Identifier,
 		RedirectIn,
-		Path,
+		Identifier,
 		EndOfInput,
 	}
 	if len(got) != len(want) {
@@ -36,6 +36,27 @@ func TestLexShellOperators(t *testing.T) {
 	for i := range want {
 		if got[i] != want[i] {
 			t.Errorf("token %d: got %v, want %v", i, got[i], want[i])
+		}
+	}
+}
+
+func TestLexEscapedOperatorsRemainArguments(t *testing.T) {
+	tokens := lexTokens(`echo \| \> \{ \$value`)
+	if len(tokens) != 6 {
+		values := []string{}
+		for _, token := range tokens {
+			value := ""
+			token.Value.IfPresent(func(candidate string) { value = candidate })
+			values = append(values, value)
+		}
+		t.Fatalf("token count: got %d, want 6 (%#v)", len(tokens), values)
+	}
+	want := []string{"echo", "|", ">", "{", "$value"}
+	for i, expected := range want {
+		value := ""
+		tokens[i].Value.IfPresent(func(candidate string) { value = candidate })
+		if value != expected {
+			t.Errorf("token %d: got %q, want %q", i, value, expected)
 		}
 	}
 }
@@ -90,6 +111,27 @@ func TestParsePipelineRejectsMissingRedirectPath(t *testing.T) {
 	_, err := parsePipeline(nil, lexTokens(`echo value >`))
 	if err == nil {
 		t.Fatal("parsePipeline accepted a redirect without a path")
+	}
+}
+
+func TestParsePipelineRejectsUnmatchedClosingBrace(t *testing.T) {
+	_, err := parsePipeline(nil, lexTokens(`echo value }`))
+	if err == nil {
+		t.Fatal("parsePipeline accepted an unmatched closing brace")
+	}
+}
+
+func TestParsePipelineRejectsTrailingPipe(t *testing.T) {
+	_, err := parsePipeline(nil, lexTokens(`echo value |`))
+	if err == nil {
+		t.Fatal("parsePipeline accepted a trailing pipe")
+	}
+}
+
+func TestParsePipelineRejectsRedirectionWithoutStage(t *testing.T) {
+	_, err := parsePipeline(nil, lexTokens(`echo value | > output.txt`))
+	if err == nil {
+		t.Fatal("parsePipeline accepted a redirection without a pipeline stage")
 	}
 }
 

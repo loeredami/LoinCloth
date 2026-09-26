@@ -37,6 +37,10 @@ type State struct {
 	pendingInput string
 
 	config Configuration
+
+	// configPath is an optional startup-selected .cloth file. An empty value
+	// keeps the normal per-user default.cloth behavior.
+	configPath string
 }
 
 func (ws *Workspace) Encode() []byte {

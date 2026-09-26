@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -392,6 +394,7 @@ func parsePipeline(state *State, tokens []Token) ([]PipelineCommand, error) {
 	var stdinPath, stdoutPath string
 	appendOut := false
 	braceDepth := 0
+	afterPipe := false
 
 	flush := func() error {
 		args := processTokens(state, current)
@@ -416,6 +419,9 @@ func parsePipeline(state *State, tokens []Token) ([]PipelineCommand, error) {
 		if token.Type == EndOfInput {
 			break
 		}
+		if token.Type == CloseBrace && braceDepth == 0 {
+			return nil, fmt.Errorf("unmatched closing brace")
+		}
 		if braceDepth > 0 {
 			current = append(current, token)
 			if token.Type == OpenBrace {
@@ -434,7 +440,11 @@ func parsePipeline(state *State, tokens []Token) ([]PipelineCommand, error) {
 			if err := flush(); err != nil {
 				return nil, err
 			}
+			afterPipe = true
 		case RedirectIn, RedirectOut, RedirectAppend:
+			if len(current) == 0 && len(commands) > 0 {
+				return nil, fmt.Errorf("redirection has no command in this pipeline stage")
+			}
 			if i+1 >= len(tokens) || tokens[i+1].Type == EndOfInput {
 				return nil, fmt.Errorf("redirection requires a path")
 			}
@@ -456,10 +466,14 @@ func parsePipeline(state *State, tokens []Token) ([]PipelineCommand, error) {
 			i++
 		default:
 			current = append(current, token)
+			afterPipe = false
 			if token.Type == OpenBrace {
 				braceDepth++
 			}
 		}
+	}
+	if afterPipe {
+		return nil, fmt.Errorf("pipe has no command after it")
 	}
 	if braceDepth != 0 {
 		return nil, fmt.Errorf("unclosed brace in command")
@@ -483,13 +497,15 @@ func commandEnvironment(state *State) []string {
 			envMap[pair[0]] = pair[1]
 		}
 	}
-	state.workspaces.Get(state.cur_workspace).IfPresent(func(ws *Workspace) {
-		ws.scopes.ForEach(func(idx int, s *Scope) {
-			s.overrides.ForEach(func(key string, val string) {
-				envMap[key] = val
+	if state != nil {
+		state.workspaces.Get(state.cur_workspace).IfPresent(func(ws *Workspace) {
+			ws.scopes.ForEach(func(idx int, s *Scope) {
+				s.overrides.ForEach(func(key string, val string) {
+					envMap[key] = val
+				})
 			})
 		})
-	})
+	}
 	finalEnv := make([]string, 0, len(envMap))
 	for k, v := range envMap {
 		finalEnv = append(finalEnv, fmt.Sprintf("%s=%s", k, v))
@@ -748,6 +764,10 @@ func runPipeline(state *State, commands []PipelineCommand, output io.Writer) {
 }
 
 func RunString(state *State, input string) {
+	RunStringTo(state, input, os.Stdout)
+}
+
+func RunStringTo(state *State, input string, output io.Writer) {
 	tokens := Lex(input)
 	tokenSlice := []Token{}
 	tokens.ForEach(func(idx int, token Token) {
@@ -762,7 +782,7 @@ func RunString(state *State, input string) {
 	if len(commands) == 0 {
 		return
 	}
-	runPipeline(state, commands, os.Stdout)
+	runPipeline(state, commands, output)
 }
 
 func Run(state *State, cmdArgs []string, w io.Writer) {
@@ -820,13 +840,15 @@ func runWithStdin(state *State, cmdArgs []string, w io.Writer, stdin io.Reader) 
 			}
 		}
 
-		state.workspaces.Get(state.cur_workspace).IfPresent(func(ws *Workspace) {
-			ws.scopes.ForEach(func(idx int, s *Scope) {
-				s.overrides.ForEach(func(key string, val string) {
-					envMap[key] = val
+		if state != nil {
+			state.workspaces.Get(state.cur_workspace).IfPresent(func(ws *Workspace) {
+				ws.scopes.ForEach(func(idx int, s *Scope) {
+					s.overrides.ForEach(func(key string, val string) {
+						envMap[key] = val
+					})
 				})
 			})
-		})
+		}
 
 		finalEnv := make([]string, 0, len(envMap))
 		for k, v := range envMap {
@@ -847,27 +869,29 @@ func runWithStdin(state *State, cmdArgs []string, w io.Writer, stdin io.Reader) 
 }
 
 func ReadConfiguration(state *State) {
-	path, err := os.UserConfigDir()
-	if err != nil {
-		fmt.Printf("Could not find User config directory.\n")
-		return
-	}
+	configFilePath := state.configPath
+	if configFilePath == "" {
+		path, err := os.UserConfigDir()
+		if err != nil {
+			fmt.Printf("Could not find User config directory.\n")
+			return
+		}
 
-	path = filepath.Join(path, ".loin")
+		path = filepath.Join(path, ".loin")
+		err = os.MkdirAll(path, 0755)
+		if err != nil {
+			fmt.Printf("Error creating configuration directory: %v\n", err)
+			return
+		}
 
-	err = os.MkdirAll(path, 0755)
-	if err != nil {
-		fmt.Printf("Error creating configuration directory: %v\n", err)
-		return
+		configFilePath = filepath.Join(path, "default.cloth")
+		f, err := os.OpenFile(configFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			fmt.Printf("Error ensuring configuration file exists: %v\n", err)
+			return
+		}
+		f.Close()
 	}
-
-	configFilePath := filepath.Join(path, "default.cloth")
-	f, err := os.OpenFile(configFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		fmt.Printf("Error ensuring configuration file exists: %v\n", err)
-		return
-	}
-	f.Close()
 
 	data, err := os.ReadFile(configFilePath)
 	if err != nil {
@@ -883,7 +907,38 @@ func ReadConfiguration(state *State) {
 	}
 }
 
+func RunNonInteractive(state *State) {
+	scanner := bufio.NewScanner(os.Stdin)
+	var command strings.Builder
+
+	for scanner.Scan() {
+		line := strings.TrimSuffix(scanner.Text(), "\r")
+		continued := strings.HasSuffix(line, "\\")
+		if continued {
+			line = strings.TrimSuffix(line, "\\")
+		}
+		command.WriteString(line)
+
+		if continued {
+			command.WriteByte(' ')
+			continue
+		}
+
+		input := strings.TrimSpace(command.String())
+		command.Reset()
+		if input == "exit" {
+			return
+		}
+		if input != "" {
+			RunString(state, input)
+		}
+	}
+}
+
 func main() {
+	selectedCloth := flag.String("cloth", "", "load a specific .cloth configuration file")
+	flag.Parse()
+
 	InitTerminal()
 
 	sigChan := make(chan os.Signal, 1)
@@ -902,7 +957,13 @@ func main() {
 		scopes: ungo.NewLinkedList[*Scope](),
 	})
 
+	state.configPath = *selectedCloth
 	state.ResetConfig()
+
+	if info, err := os.Stdin.Stat(); err == nil && info.Mode()&os.ModeCharDevice == 0 {
+		RunNonInteractive(state)
+		return
+	}
 
 	duration := ungo.None[time.Duration]()
 
