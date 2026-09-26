@@ -127,6 +127,7 @@ The following foundations exist:
 - Repository-local development configuration selection with `--cloth`.
 - Trust-rule matching for exact paths, basenames, and explicit globs.
 - Versioned persistent trust-store prototype with validation and atomic writes.
+- Direct-interactive trust management commands: `!trust`, `!trust-list`, and `!untrust`.
 - Pure trust decision policy:
   - Trusted executable: allow.
   - `default.cloth`: allow under the current prototype policy.
@@ -136,7 +137,6 @@ The following foundations exist:
 The following are not complete:
 
 - Trust prompt integration with actual command launching.
-- `!trust`, trust inspection, and trust revocation commands.
 - Gray-list approval for non-default `.cloth` files.
 - `!toggle-security` and `!wear-ns`.
 - `!access-administrator` and `!exit-administrator`.

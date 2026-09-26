@@ -45,6 +45,9 @@ type State struct {
 	// commandSource identifies where the currently executing command came from.
 	// It is the foundation for trust and gray-list decisions.
 	commandSource CommandSource
+
+	trustStore     TrustStore
+	trustStorePath string
 }
 
 func (ws *Workspace) Encode() []byte {

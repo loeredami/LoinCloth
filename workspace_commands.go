@@ -98,6 +98,66 @@ func GetEnvValue(state *State, key string) ungo.Optional[[]string] {
 }
 
 func init() {
+	RegisterCmd("!trust", func(state *State, command []string) ungo.Optional[error] {
+		if state.commandSource != SourceInteractive {
+			return ungo.Some(fmt.Errorf("!trust requires direct interactive input"))
+		}
+		if len(command) < 2 {
+			return ungo.Some(fmt.Errorf("expected executable path, basename, or explicit glob"))
+		}
+		if strings.HasPrefix(command[1], "!") {
+			return ungo.Some(fmt.Errorf("workspace commands cannot be trusted as executables"))
+		}
+		kind, rule := ParseTrustRule(command[1])
+		entry := TrustEntry{Rule: rule, Kind: kind, Source: SourceInteractive}
+		state.trustStore.Add(entry)
+		if state.trustStorePath == "" {
+			path, err := DefaultTrustStorePath()
+			if err != nil {
+				return ungo.Some(err)
+			}
+			state.trustStorePath = path
+		}
+		if err := SaveTrustStore(state.trustStorePath, state.trustStore); err != nil {
+			return ungo.Some(fmt.Errorf("failed to save trust store: %v", err))
+		}
+		fmt.Printf("trusted %s (%d)\n", rule, kind)
+		return ungo.None[error]()
+	})
+
+	RegisterCmd("!trust-list", func(state *State, command []string) ungo.Optional[error] {
+		if state.commandSource != SourceInteractive {
+			return ungo.Some(fmt.Errorf("!trust-list requires direct interactive input"))
+		}
+		entries := state.trustStore.Entries()
+		if len(entries) == 0 {
+			fmt.Println("trust list is empty")
+			return ungo.None[error]()
+		}
+		for _, entry := range entries {
+			fmt.Printf("%s (%d, source: %s)\n", entry.Rule, entry.Kind, entry.Source)
+		}
+		return ungo.None[error]()
+	})
+
+	RegisterCmd("!untrust", func(state *State, command []string) ungo.Optional[error] {
+		if state.commandSource != SourceInteractive {
+			return ungo.Some(fmt.Errorf("!untrust requires direct interactive input"))
+		}
+		if len(command) < 2 {
+			return ungo.Some(fmt.Errorf("expected executable path, basename, or explicit glob"))
+		}
+		kind, rule := ParseTrustRule(command[1])
+		if !state.trustStore.RemoveRule(kind, rule) {
+			return ungo.Some(fmt.Errorf("trust entry not found: %s", rule))
+		}
+		if err := SaveTrustStore(state.trustStorePath, state.trustStore); err != nil {
+			return ungo.Some(fmt.Errorf("failed to save trust store: %v", err))
+		}
+		fmt.Printf("removed trust entry %s\n", rule)
+		return ungo.None[error]()
+	})
+
 	RegisterCmd("!new", func(state *State, command []string) ungo.Optional[error] {
 		if len(command) < 2 {
 			return ungo.Some(fmt.Errorf("expected argument 'w' for workspace or 's' for scope"))

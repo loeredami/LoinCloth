@@ -929,6 +929,21 @@ func ReadConfiguration(state *State) {
 	}
 }
 
+func InitializeTrustStore(state *State) {
+	path, err := DefaultTrustStorePath()
+	if err != nil {
+		fmt.Printf("Trust store unavailable: %v\n", err)
+		return
+	}
+	store, err := LoadTrustStore(path)
+	if err != nil {
+		fmt.Printf("Trust store rejected: %v\n", err)
+		return
+	}
+	state.trustStorePath = path
+	state.trustStore = store
+}
+
 func RunNonInteractive(state *State) {
 	scanner := bufio.NewScanner(os.Stdin)
 	var command strings.Builder
@@ -981,6 +996,7 @@ func main() {
 
 	state.configPath = *selectedCloth
 	state.ResetConfig()
+	InitializeTrustStore(state)
 
 	if info, err := os.Stdin.Stat(); err == nil && info.Mode()&os.ModeCharDevice == 0 {
 		RunNonInteractive(state)

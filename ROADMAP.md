@@ -61,12 +61,15 @@ The trust list controls whether an external executable may run without explicit 
 - [ ] Define `sudo command` as a one-invocation elevation request that does not permanently trust the executable.
 - [ ] Ensure trust approval and administrator elevation remain separate decisions: `Run Once` must not trigger sudo, and a denied trust check must not silently retry with sudo.
 - [ ] If an ordinary child exits with a permission error, report it without automatically retrying or requesting elevation.
-- [ ] Add an explicit trust command, tentatively:
+- [x] Add direct-interactive trust management commands:
   ```text
   !trust explorer.exe
   !trust explorer
+  !trust-list
+  !untrust explorer
   ```
-- [ ] Restrict `!trust` to native/external executable targets; reject targets beginning with `!`.
+- [x] Restrict `!trust` to native/external executable targets; reject targets beginning with `!`.
+- [ ] Add confirmation prompts before persisting trust entries.
 - [ ] Ensure commands loaded from non-default `.cloth` files cannot silently create trusted entries.
 - [ ] Define gray-list inspection, approval, revocation, and audit output.
 - [ ] Propagate command source through nested `!wear` loads so commands retain their original file context.
@@ -138,7 +141,8 @@ The trust list controls whether an external executable may run without explicit 
 - [ ] Keep the security trust list separate from workspace scopes by default.
 - [ ] Use a dedicated persistent trust store with explicit ownership and restrictive permissions.
 - [x] Add an isolated versioned trust-store persistence prototype with validation, restrictive temporary-file permissions, atomic replacement, and removal support.
-- [ ] Integrate the persistent store with `!trust`, inspection, revocation, and command authorization.
+- [x] Integrate the persistent store with `!trust`, inspection, and revocation commands.
+- [ ] Integrate the persistent store with command authorization.
 - [ ] Consider optional scope-local, temporary trust entries only as an isolated future feature.
 - [ ] Do not store executable trust entries in `.cloth` files, because those files can be loaded from untrusted projects.
 - [ ] Document that scopes manage environment overrides and workspace state, not security authorization.

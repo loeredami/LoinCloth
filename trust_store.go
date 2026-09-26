@@ -99,6 +99,24 @@ func (store *TrustStore) Remove(entry TrustEntry) bool {
 	return false
 }
 
+func (store *TrustStore) RemoveRule(kind TrustMatchKind, rule string) bool {
+	for i, existing := range store.entries {
+		if existing.Kind == kind && existing.Rule == rule {
+			store.entries = append(store.entries[:i], store.entries[i+1:]...)
+			return true
+		}
+	}
+	return false
+}
+
+func DefaultTrustStorePath() (string, error) {
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(configDir, ".loin", "trust.json"), nil
+}
+
 func LoadTrustStore(path string) (TrustStore, error) {
 	data, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
