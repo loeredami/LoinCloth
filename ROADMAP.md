@@ -85,6 +85,8 @@ The trust list controls whether an external executable may run without explicit 
   - [ ] Executable basename, such as `explorer.exe` or `explorer`.
   - [ ] Explicit wildcard/glob patterns only when visibly requested.
   - [ ] No implicit substring matching.
+- [x] Add an isolated trust-matching prototype with exact-path, basename, and explicit-glob rules.
+- [x] Add regression tests for cross-platform basename matching and duplicate trust entries.
 - [ ] Require confirmation before adding a trust entry, especially for wildcard or basename entries.
 - [ ] Provide commands to inspect and revoke trust entries.
 - [ ] Make `Add command to allow list` store the narrowest possible rule, preferring resolved path and executable identity over a broad basename or wildcard.
