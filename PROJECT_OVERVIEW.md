@@ -16,7 +16,7 @@ The project currently has two related goals:
 The active development line is:
 
 ```text
-v1.4.2-default-cloth-hardening
+v1.4.2-windows-default-cloth-acl
 ```
 
 The current security branch is based on the following progression:
@@ -30,7 +30,8 @@ main
                 └── v1.4.2-trust-enforcement
                     └── v1.4.2-trust-launch-enforcement
                         └── v1.4.2-trust-confirmation
-                            └── v1.4.2-default-cloth-hardening (active)
+                            └── v1.4.2-default-cloth-hardening
+                                └── v1.4.2-windows-default-cloth-acl (active)
 ```
 
 Branches are intentionally used for potentially breaking security changes. After validation, feature branches are merged into `v1.4.2`, pushed, and then used as the base for the next isolated experiment.
@@ -121,6 +122,16 @@ printf '%s\n' 'ls' 'echo external-command-is-denied-unless-trusted' | ./run_dev.
 ```
 
 `run_dev.sh` creates `loin-dev`. Remove that generated artifact before committing if it is not ignored.
+
+A basic Windows runtime smoke test is available on Linux after installing Wine. It exercises the Windows amd64 binary with piped input and Windows built-ins:
+
+```sh
+printf '%s\n' 'mkdir wine-smoke-temp' 'echo wine-builtins-ok' 'rm wine-smoke-temp' 'exit' | \
+  WINEDEBUG=-all WINEPREFIX="$HOME/.local/share/loin-wine-prefix" \
+  wine builds/loin_windows_amd64.exe --cloth default.cloth
+```
+
+Wine can catch basic startup and command-processing regressions; it does not validate native Windows ACLs, access tokens, UAC, or `runas` behavior.
 
 ## Security work status
 

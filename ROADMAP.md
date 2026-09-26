@@ -275,7 +275,9 @@ The trust list controls whether an external executable may run without explicit 
 ### Cross-platform test environments
 
 - [ ] Add a Wine-based Windows smoke-test environment for Linux development.
-- [ ] Run the Windows amd64 build under Wine for command parsing, pipelines, redirections, `.cloth` loading, and Windows built-in behavior.
+  - [x] Install Wine 11.18 and initialize a user-owned prefix for local smoke testing.
+  - [x] Run the Windows amd64 build under Wine with piped `echo`, `mkdir`, and `rm` commands; verify the temporary directory is removed.
+- [ ] Expand Wine coverage for command parsing, pipelines, redirections, `.cloth` loading, and additional Windows built-ins.
 - [ ] Use Wine to verify executable startup, argument preservation, working-directory handling, stdout/stderr behavior, and exit codes.
 - [ ] Keep Wine tests separate from native Windows administrator tests.
 - [ ] Do not treat Wine as proof of Windows administrator membership, access-token elevation, UAC prompts, or `runas` behavior.
