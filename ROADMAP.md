@@ -44,6 +44,8 @@ Security changes should not begin until the existing parser and interactive-inpu
 
 The trust list controls whether an external executable may run without explicit elevation. It is an execution-authorization layer, not an administrator grant. Security decisions must also know where a command came from: direct interactive input, `default.cloth`, or another `.cloth` file.
 
+- [x] Define the initial trust decision engine: trusted and `default.cloth` commands are allowed, interactive unknown commands prompt, and non-interactive unknown commands are denied.
+- [ ] Wire trust decisions into external command launch and the interactive approval prompt.
 - [ ] Define the default policy: deny external executables unless they are trusted or the command is explicitly elevated with `sudo`.
 - [ ] Define a native-command policy separate from workspace commands.
 - [ ] Allow explicitly approved native operating-system commands to run under the native-command policy.
