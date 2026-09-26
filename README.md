@@ -6,9 +6,11 @@ You can create multiple workspaces, and scopes which each hold their own aliases
 
 You can create and load in `.cloth` scripts to load scopes and aliases.
 
-## Current version: v1.4.1 pre-release
+## Current version: v1.4.2 experimental
 
-This release includes:
+The `v1.4.2` experimental work builds on the v1.4.1 shell features and begins the security and privilege-handling design.
+
+Current features include:
 
 - Pasted multi-command input without dropping lines after the first newline.
 - Fish-style multiline input using a trailing `\\`.
@@ -18,21 +20,31 @@ This release includes:
 - Mixed pipelines containing external commands and supported internal commands.
 - Nested brace expressions that use the pipeline parser.
 - Unicode-aware prompt redraw behavior for wide characters and emoji.
+- Source tracking for interactive input, `default.cloth`, selected development cloth files, and nested `!wear` loads.
+- Initial trust-rule matching and persistent trust-store prototypes.
+- A development configuration override through `--cloth`.
 
-See [`SHELL_OPERATORS.md`](SHELL_OPERATORS.md) for interactive input and shell operator details, and [`ROADMAP.md`](ROADMAP.md) for current development status.
+Security enforcement and administrator elevation remain experimental and are not complete. See [`ROADMAP.md`](ROADMAP.md) for the current design and branch status.
 
-### Pre-release binaries
+See [`SHELL_OPERATORS.md`](SHELL_OPERATORS.md) for interactive input and shell operator details.
 
-The `builds/` directory contains binaries for Linux, macOS, and Windows. The packaged pre-release artifacts are:
+### Development environment
 
-- `loincloth-v1.4.1-prelease.tar.gz`
-- `loincloth-v1.4.1-prelease.tar.gz.sha256`
-
-Verify the archive checksum with:
+Build and launch LoinCloth with the repository development configuration:
 
 ```sh
-sha256sum -c loincloth-v1.4.1-prelease.tar.gz.sha256
+./run_dev.sh
 ```
+
+This creates a local `loin-dev` executable and loads `./default.cloth`. To select another development configuration directly:
+
+```sh
+go run . --cloth path/to/development.cloth
+```
+
+### Build artifacts
+
+The `builds/` directory contains cross-platform development artifacts for Linux, macOS, and Windows. Release archives are created separately after an experimental version is accepted.
 
 # MAC OS Support
 Mac os is not supported however binaries will be released, and pull requests for fixes on that platform are welcomed.
