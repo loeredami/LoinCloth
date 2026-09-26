@@ -10,6 +10,16 @@ const (
 	SourceNonInteractive
 )
 
+func configurationCommandSource(isDefault, protected bool) CommandSource {
+	if !isDefault {
+		return SourceDevelopmentCloth
+	}
+	if protected {
+		return SourceDefaultCloth
+	}
+	return SourceClothFile
+}
+
 func (source CommandSource) String() string {
 	switch source {
 	case SourceInteractive:

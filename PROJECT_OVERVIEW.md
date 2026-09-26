@@ -16,7 +16,7 @@ The project currently has two related goals:
 The active development line is:
 
 ```text
-v1.4.2-trust-enforcement
+v1.4.2-default-cloth-hardening
 ```
 
 The current security branch is based on the following progression:
@@ -28,6 +28,9 @@ main
         └── v1.4.2-trust-list-foundation
             └── v1.4.2-trust-store-persistence
                 └── v1.4.2-trust-enforcement
+                    └── v1.4.2-trust-launch-enforcement
+                        └── v1.4.2-trust-confirmation
+                            └── v1.4.2-default-cloth-hardening (active)
 ```
 
 Branches are intentionally used for potentially breaking security changes. After validation, feature branches are merged into `v1.4.2`, pushed, and then used as the base for the next isolated experiment.
@@ -135,20 +138,21 @@ The following foundations exist:
 - Non-default `.cloth` commands are gray-listed and require interactive approval, even if the executable itself is trusted.
 - Piped stdin is marked non-interactive; it cannot run trust-management commands or approve executables.
 - Trust checks happen before single-command redirection files are created or truncated.
-- `default.cloth` commands are currently exempt from executable trust checks.
+- `default.cloth` commands receive the executable-trust exemption only after Unix ownership, regular-file, no-symlink, and private-permission checks; the owned config directory/file are tightened to `0700`/`0600` where needed.
+- If default-cloth validation fails, its commands are treated as gray-listed. Windows currently fails closed to gray-listing until ACL validation is implemented.
 
 The following are not complete:
 
 - Explicit confirmation when using `!trust` to add a persistent rule.
 - Native-command policy and comprehensive review/testing for every mixed/internal pipeline path.
-- Ownership and permission validation for the exempt `default.cloth`.
+- Windows ACL ownership/permission validation for the default-cloth exemption.
 - `!toggle-security` and `!wear-ns`.
 - `!access-administrator` and `!exit-administrator`.
 - Unix `sudo` delegation.
 - Windows UAC `runas` handling.
 - Protected `default.cloth` process/file-access monitoring.
 
-Do not describe the current prototype as a complete security boundary. Native-command policy, source-context edge cases, default configuration ownership/permission validation, and privilege elevation are still incomplete.
+Do not describe the current prototype as a complete security boundary. Native-command policy, source-context edge cases, Windows default-configuration ACL validation, and privilege elevation are still incomplete.
 
 ## Security design principles
 

@@ -116,8 +116,11 @@ The trust list controls whether an external executable may run without explicit 
   ```
 - [x] Define the initial behavior: `--cloth` replaces `default.cloth` for that process.
 - [x] Add a repository-local `default.cloth` for deterministic development testing.
-- [ ] Make the selected file's source context explicit: a development file must not inherit `default.cloth` trust automatically.
-- [ ] Treat an explicitly selected development `.cloth` as gray-listed by default.
+- [x] Make the selected file's source context explicit: a development file must not inherit `default.cloth` trust automatically.
+- [x] Treat an explicitly selected development `.cloth` as gray-listed by default.
+- [x] On Unix, restrict the normal `.loin` config directory to `0700` and default cloth to `0600` before granting its source exemption; reject symlinks, non-regular files, and files/directories not owned by the current user.
+- [x] If default-cloth protection validation fails, load it as gray-listed; fail closed on Windows until ACL validation is implemented.
+- [ ] Add Windows ACL ownership/permission validation before granting the default-cloth exemption.
 - [ ] Display the active configuration path and security source in startup/status output.
 - [ ] Reject missing, unreadable, or directory-valued configuration paths before starting the shell.
 - [x] Accept `--cloth` only from process arguments, never from a configuration file.
