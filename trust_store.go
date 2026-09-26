@@ -193,7 +193,7 @@ func ParseTrustRule(rule string) (TrustMatchKind, string) {
 	if strings.ContainsAny(rule, "*?[") {
 		return TrustGlob, rule
 	}
-	if strings.ContainsRune(rule, filepath.Separator) || (filepath.Separator != '\\' && strings.ContainsRune(rule, '\\')) {
+	if strings.ContainsAny(rule, `/\`) {
 		return TrustExactPath, normalizeExecutablePath(rule)
 	}
 	return TrustBasename, rule

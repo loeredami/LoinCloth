@@ -119,8 +119,11 @@ The trust list controls whether an external executable may run without explicit 
 - [x] Make the selected file's source context explicit: a development file must not inherit `default.cloth` trust automatically.
 - [x] Treat an explicitly selected development `.cloth` as gray-listed by default.
 - [x] On Unix, restrict the normal `.loin` config directory to `0700` and default cloth to `0600` before granting its source exemption; reject symlinks, non-regular files, and files/directories not owned by the current user.
-- [x] If default-cloth protection validation fails, load it as gray-listed; fail closed on Windows until ACL validation is implemented.
-- [ ] Add Windows ACL ownership/permission validation before granting the default-cloth exemption.
+- [x] If default-cloth protection validation fails, load it as gray-listed; fail closed on Windows when ACL validation is unavailable or rejects the ACL.
+- [x] Validate Windows default-cloth directory/file handles: require current-user ownership, an explicit DACL granting access only to the current user, SYSTEM, or local Administrators, and reject reparse points or unsupported ACE types.
+  - [x] Fail closed to gray-listing when ACL inspection fails or an unapproved SID (including Everyone) is granted access.
+  - [x] Add Windows ACE-policy and SID-matching tests and run them under Wine.
+  - [ ] Verify the accepted/rejected ACL cases on native Windows; Wine ACL behavior is not authoritative.
 - [ ] Display the active configuration path and security source in startup/status output.
 - [ ] Reject missing, unreadable, or directory-valued configuration paths before starting the shell.
 - [x] Accept `--cloth` only from process arguments, never from a configuration file.
@@ -277,8 +280,11 @@ The trust list controls whether an external executable may run without explicit 
 - [ ] Add a Wine-based Windows smoke-test environment for Linux development.
   - [x] Install Wine 11.18 and initialize a user-owned prefix for local smoke testing.
   - [x] Run the Windows amd64 build under Wine with piped `echo`, `mkdir`, and `rm` commands; verify the temporary directory is removed.
+- [x] Exercise default-config startup under Wine and verify an Everyone-accessible config directory falls back to gray-listing.
+- [x] Run Windows ACE-policy and SID-matching tests under Wine.
+- [x] Run the full Windows Go test suite under Wine after fixing forward-slash executable path classification.
 - [ ] Expand Wine coverage for command parsing, pipelines, redirections, `.cloth` loading, and additional Windows built-ins.
-- [ ] Use Wine to verify executable startup, argument preservation, working-directory handling, stdout/stderr behavior, and exit codes.
+- [ ] Use Wine to verify argument preservation, working-directory handling, stderr behavior, and exit codes.
 - [ ] Keep Wine tests separate from native Windows administrator tests.
 - [ ] Do not treat Wine as proof of Windows administrator membership, access-token elevation, UAC prompts, or `runas` behavior.
 - [ ] Add native Windows CI or manual verification for token classification, UAC approval, UAC cancellation, and elevated child-process behavior.

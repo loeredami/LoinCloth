@@ -131,7 +131,15 @@ printf '%s\n' 'mkdir wine-smoke-temp' 'echo wine-builtins-ok' 'rm wine-smoke-tem
   wine builds/loin_windows_amd64.exe --cloth default.cloth
 ```
 
-Wine can catch basic startup and command-processing regressions; it does not validate native Windows ACLs, access tokens, UAC, or `runas` behavior.
+Run the Windows-targeted Go tests under Wine with:
+
+```sh
+GOOS=windows GOARCH=amd64 \
+  WINEPREFIX="$HOME/.local/share/loin-wine-prefix" WINEDEBUG=-all \
+  go test -exec wine ./...
+```
+
+Wine can catch basic startup and command-processing regressions; it does not validate native Windows ACL semantics, access tokens, UAC, or `runas` behavior. In the current Wine prefix, the default config directory grants access to `Everyone`, so LoinCloth correctly treats it as gray-listed.
 
 ## Security work status
 
@@ -149,21 +157,21 @@ The following foundations exist:
 - Non-default `.cloth` commands are gray-listed and require interactive approval, even if the executable itself is trusted.
 - Piped stdin is marked non-interactive; it cannot run trust-management commands or approve executables.
 - Trust checks happen before single-command redirection files are created or truncated.
-- `default.cloth` commands receive the executable-trust exemption only after Unix ownership, regular-file, no-symlink, and private-permission checks; the owned config directory/file are tightened to `0700`/`0600` where needed.
-- If default-cloth validation fails, its commands are treated as gray-listed. Windows currently fails closed to gray-listing until ACL validation is implemented.
+- `default.cloth` commands receive the executable-trust exemption only after platform-specific validation: Unix ownership, regular-file, no-symlink, and private-permission checks (tightened to `0700`/`0600` where possible); Windows current-user ownership, explicit DACL validation, and reparse-point rejection.
+- Windows permits DACL access only for the current user, SYSTEM, and local Administrators. Untrusted SIDs, unsupported ACEs, or ACL inspection failures fall back to gray-listing.
 
 The following are not complete:
 
 - Explicit confirmation when using `!trust` to add a persistent rule.
 - Native-command policy and comprehensive review/testing for every mixed/internal pipeline path.
-- Windows ACL ownership/permission validation for the default-cloth exemption.
+- Native Windows verification of the default-cloth ACL acceptance/rejection cases; Wine’s ACL behavior is not authoritative.
 - `!toggle-security` and `!wear-ns`.
 - `!access-administrator` and `!exit-administrator`.
 - Unix `sudo` delegation.
 - Windows UAC `runas` handling.
 - Protected `default.cloth` process/file-access monitoring.
 
-Do not describe the current prototype as a complete security boundary. Native-command policy, source-context edge cases, Windows default-configuration ACL validation, and privilege elevation are still incomplete.
+Do not describe the current prototype as a complete security boundary. Native-command policy, source-context edge cases, native Windows ACL validation, and privilege elevation are still incomplete.
 
 ## Security design principles
 
