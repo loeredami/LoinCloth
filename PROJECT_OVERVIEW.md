@@ -4,13 +4,13 @@ This file is a compact orientation guide for contributors and coding agents.
 
 ## Project purpose
 
-LoinCloth is a Go-based interactive shell focused on project workspaces, scopes, `.cloth` configuration files, command pipelines, and cross-platform terminal behavior. It is also a practical test bed for the `ungo` library: use its data structures and functional helpers where they fit, and benchmark or test their limitations against Go's standard library when behavior or performance matters.
+LoinCloth is a Go-based interactive shell focused on project workspaces, scopes, `.cloth` configuration files, command pipelines, and cross-platform terminal behavior. It is also a practical test bed for the `ungo` library: prioritize whether its APIs make real application code clearer and easier to compose. Use benchmarks and comparisons as supporting evidence when they help make a design decision, not as the goal of the project.
 
 The project currently has three related goals:
 
 1. Maintain the v1.4.1 shell functionality.
 2. Experiment with high-security command authorization and cross-platform administrator handling for v1.4.2.
-3. Exercise `ungo` in a real application, using evidence-driven benchmarks and regression tests to expose library trade-offs.
+3. Explore `ungo` in a real application, prioritizing programmer convenience and useful composition, while testing behavior and performance when they affect adoption.
 
 ## Current Git state
 

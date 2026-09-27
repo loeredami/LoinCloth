@@ -25,6 +25,7 @@ Security changes should not begin until the existing parser and interactive-inpu
 
 ### `ungo` library experiments
 
+- Primary criterion: does an `ungo` API make a real LoinCloth task simpler, clearer, or easier to compose? Prefer useful integrations and ergonomic tests; use benchmarks to resolve a concrete trade-off, not to maximize library usage or chase micro-optimizations.
 - [x] Use `os.LookupEnv` and a single scope traversal for variable lookup, retaining `ungo.SmallMap` scope overrides; measure the change with a 64-scope benchmark.
 - [x] Benchmark child-environment assembly with `ungo.SmallMap` against legacy and built-in-map implementations, and verify environment equivalence.
 - [x] Benchmark `ungo.SmallMap` command-registry lookup/construction against Go maps; test collision, growth, overwrite, and deletion behavior. Reduce the constructor capacity hint from 256 to 64 based on the measured allocation/build trade-off.
@@ -33,7 +34,7 @@ Security changes should not begin until the existing parser and interactive-inpu
 - [x] Benchmark `ungo.Queue` for pasted command batches against slice-cursor and string-buffer representations; verify FIFO, empty values, and empty-queue behavior. For 700 commands, the linked queue used 700 allocations/16.8 KB and took about 11.3 us; at 5,000 commands it used 5,000 allocations/120 KB and took about 83 us. The alternatives were materially cheaper in allocations, so keep the current input buffer and do not migrate to one queue node per command. This microbenchmark does not settle chunk-queue memory retention or CRLF/continuation integration.
 - [x] Review `ungo` concurrency candidates before integration: `Worker.Cancel` only sets a flag the worker never checks; worker result/running state and the global registry are unsynchronized; `Promise` uses a consuming channel and `Reject` type-asserts `error` to `T`; `EventLoop` has close/restart and blocking-post lifecycle hazards. Do not adopt these primitives in shell execution without fixing and testing their contracts in `ungo`.
 - [ ] If `ungo` concurrency primitives are improved, test cancellation, shutdown, repeated result access, panic/error propagation, and race safety against standard Go patterns before considering integration.
-- [ ] Inventory the remaining `ungo` APIs by application fit; prefer experiments that exercise distinct library capabilities rather than repeatedly substituting map implementations.
+- [ ] Inventory remaining `ungo` APIs by programmer convenience and application fit; prototype a small real use before comparing alternatives.
 - [ ] Record negative results and known limitations as well as adopted improvements; do not adopt a library abstraction solely to maximize usage.
 
 ### Experiment policy
