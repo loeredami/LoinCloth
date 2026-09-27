@@ -54,7 +54,8 @@ Branches are intentionally used for potentially breaking security changes. After
 | `terminal_input_test.go` | Pasted batches, CRLF, continuation, cancellation, and command-source regression tests. |
 | `run_string_test.go` | Integration tests for command strings, pipelines, and redirections. |
 | `workspace.go` | `State`, workspaces, scopes, configuration path, and command-source state. |
-| `workspace_commands.go` | Workspace and `!` command implementations. |
+| `workspace_commands.go` | Workspace and `!` command implementations, including environment and scope variable lookup. |
+| `workspace_commands_test.go` | Scope/environment lookup regression tests and a many-scope benchmark. |
 | `command_source.go` | Command-origin classification: interactive input, `default.cloth`, `.cloth`, and development cloth. |
 | `trust_store.go` | Trust-rule matching and persistent trust-store prototype. |
 | `trust_policy.go` | Pure trust decision policy: allow, prompt, or deny. |
@@ -119,6 +120,7 @@ Run standard validation:
 go test ./...
 go build .
 ./build_all.sh
+go test -run '^$' -bench '^BenchmarkGetEnvValueManyScopes$' -benchmem
 ```
 
 The normal smoke test should also exercise the development launcher, including allowed internal commands and expected non-interactive external-command denial:
@@ -153,6 +155,7 @@ The following foundations exist:
 
 - Parser rejects empty command names, malformed/repeated redirections, and pipe stages without commands; blank input remains a no-op.
 - `!last-status` reports the previous non-empty command's status. External-only pipelines use the final stage's status; buffered pipelines stop at the first failed stage.
+- Scope overrides use `ungo.SmallMap`; environment lookup uses `os.LookupEnv` and visits scope overrides in one forward pass, preserving newest-scope precedence. The 64-scope benchmark dropped from about 4.25 us/92 allocations to 0.36 us/6 allocations per lookup on the development machine; rerun the benchmark for local results.
 - Pasted interactive batches preserve commands across the input buffer boundary; continuation, CRLF, and Ctrl+C cancellation are covered by tests.
 - Nested `!wear` command source is tracked and restored, including loads initiated by the default-configuration source.
 - Command-source tracking.

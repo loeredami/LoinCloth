@@ -23,6 +23,11 @@ Security changes should not begin until the existing parser and interactive-inpu
   - [x] Define and test shell-visible status codes and pipeline exit status behavior: external-only pipelines use the final stage status; buffered pipelines stop and report the first failed stage.
 - [x] Establish a baseline regression run before implementing privilege changes (`go test ./...` passed on the feature branch before implementation).
 
+### Performance and dependency use
+
+- [x] Use `os.LookupEnv` and a single scope traversal for variable lookup, retaining the existing `ungo.SmallMap` scope overrides. The 64-scope benchmark reduced measured lookup time and allocations; rerun locally with `go test -run '^$' -bench '^BenchmarkGetEnvValueManyScopes$' -benchmem`.
+- [ ] Benchmark any further `ungo.SmallMap` substitutions against Go maps and validate library behavior before adopting them.
+
 ### Experiment policy
 
 - [ ] Ordinary commands must never be elevated automatically.

@@ -27,76 +27,54 @@ func HandleStateCommands(state *State, command []string) ungo.Optional[error] {
 }
 
 func GetEnvValue(state *State, key string) ungo.Optional[[]string] {
-	ws_opt := state.workspaces.Get(state.cur_workspace)
-
-	if !ws_opt.HasValue() {
+	wsOpt := state.workspaces.Get(state.cur_workspace)
+	if !wsOpt.HasValue() {
 		return ungo.None[[]string]()
 	}
-	ws := ws_opt.Value()
-	result := ungo.None[[]string]()
-	var found_in_os bool = false
-	for _, e := range os.Environ() {
-		pair := strings.SplitN(e, "=", 2)
-		if len(pair) == 2 {
-			if pair[0] == key {
-				result = ungo.Some([]string{})
+	ws := wsOpt.Value()
 
-				Lex(pair[1]).ForEach(func(i int, tk Token) {
-					if found_in_os {
-						return
-					}
-					result = ungo.Some(append(result.Value(), tk.Value.OrElse("")))
-					found_in_os = true
-				})
+	override := ""
+	hasOverride := false
+	ws.scopes.ForEach(func(_ int, scope *Scope) {
+		if value, ok := scope.overrides.Get(key); ok {
+			override = value
+			hasOverride = true
+		}
+	})
+	if hasOverride {
+		tokens := Lex(override)
+		commandStrings := []string{}
+		tokens.ForEach(func(_ int, token Token) {
+			if token.Type == EndOfInput {
+				return
 			}
-		}
-		if found_in_os {
-			break
-		}
-	}
-	i := ws.scopes.Size() - 1
-
-	for {
-		if i < 0 {
-			return result
-		}
-
-		sc_opt := ws.scopes.Get(i)
-
-		if sc_opt.HasValue() {
-			sc := sc_opt.Value()
-
-			if val, ok := sc.overrides.Get(key); ok {
-				tokens := Lex(val)
-
-				command_strings := []string{}
-				tokens.ForEach(func(idx int, token Token) {
-					if token.Type == EndOfInput {
-						return
-					}
-
-					if token.Type == Path {
-						token.Value.IfPresent(func(val string) {
-							command_strings = append(command_strings, UnformatPathIfInHome(val))
-						})
-						return
-					}
-
-					token.Value.IfPresent(func(val string) {
-						command_strings = append(command_strings, val)
-					})
+			if token.Type == Path {
+				token.Value.IfPresent(func(value string) {
+					commandStrings = append(commandStrings, UnformatPathIfInHome(value))
 				})
-
-				result = ungo.Some(command_strings)
-				break
+				return
 			}
-
-		}
-
-		i--
+			token.Value.IfPresent(func(value string) {
+				commandStrings = append(commandStrings, value)
+			})
+		})
+		return ungo.Some(commandStrings)
 	}
 
-	return result
+	value, exists := os.LookupEnv(key)
+	if !exists {
+		return ungo.None[[]string]()
+	}
+	result := []string{}
+	found := false
+	Lex(value).ForEach(func(_ int, token Token) {
+		if found {
+			return
+		}
+		result = append(result, token.Value.OrElse(""))
+		found = true
+	})
+	return ungo.Some(result)
 }
 
 func writeLastStatus(state *State, w io.Writer) {
