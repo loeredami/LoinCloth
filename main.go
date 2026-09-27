@@ -718,6 +718,12 @@ func runPipeline(state *State, commands []PipelineCommand, output io.Writer) {
 	execs := make([]*exec.Cmd, len(commands))
 	readers := make([]io.ReadCloser, len(commands)-1)
 	writers := make([]io.WriteCloser, len(commands)-1)
+	var redirectedFiles []*os.File
+	defer func() {
+		for _, file := range redirectedFiles {
+			_ = file.Close()
+		}
+	}()
 	for i, command := range commands {
 		path, err := exec.LookPath(command.args[0])
 		if err != nil {
@@ -736,6 +742,7 @@ func runPipeline(state *State, commands []PipelineCommand, output io.Writer) {
 				return
 			}
 			execs[i].Stdin = file
+			redirectedFiles = append(redirectedFiles, file)
 		}
 		if i < len(commands)-1 {
 			reader, writer, err := os.Pipe()
@@ -759,6 +766,7 @@ func runPipeline(state *State, commands []PipelineCommand, output io.Writer) {
 				return
 			}
 			execs[i].Stdout = file
+			redirectedFiles = append(redirectedFiles, file)
 		} else {
 			execs[i].Stdout = output
 		}
