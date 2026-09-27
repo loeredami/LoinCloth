@@ -46,6 +46,37 @@ func TestRunStringRejectsTrustManagementFromPipedInput(t *testing.T) {
 	}
 }
 
+func TestProtectedDefaultClothCanSeedSessionTrust(t *testing.T) {
+	state := &State{
+		workspaces: ungo.NewLinkedList[*Workspace](),
+		config:     DefaultConfiguration(),
+	}
+	var output bytes.Buffer
+	RunStringToSource(state, `!trust /usr/bin/true`, &output, SourceDefaultCloth)
+	if !state.trustStore.Allows("/usr/bin/true") {
+		t.Fatal("protected default.cloth trust rule was not retained in session state")
+	}
+	entries := state.trustStore.Entries()
+	if len(entries) != 1 || entries[0].Source != SourceDefaultCloth {
+		t.Fatalf("default.cloth trust source not recorded: %#v", entries)
+	}
+}
+
+func TestUnprotectedClothCannotSeedSessionTrust(t *testing.T) {
+	state := &State{
+		workspaces: ungo.NewLinkedList[*Workspace](),
+		config:     DefaultConfiguration(),
+	}
+	var output bytes.Buffer
+	RunStringToSource(state, `!trust /usr/bin/true`, &output, SourceDevelopmentCloth)
+	if len(state.trustStore.Entries()) != 0 {
+		t.Fatalf("unprotected configuration seeded trust: %#v", state.trustStore.Entries())
+	}
+	if !strings.Contains(output.String(), "requires direct interactive input") {
+		t.Fatalf("unprotected configuration rejection not reported: %q", output.String())
+	}
+}
+
 func TestRunStringBlocksUntrustedNonInteractiveCommand(t *testing.T) {
 	command, state := testCommandHelper(t, "first")
 	state.trustStore = TrustStore{}

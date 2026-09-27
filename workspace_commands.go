@@ -117,7 +117,9 @@ func init() {
 	})
 
 	RegisterCmd("!trust", func(state *State, command []string) ungo.Optional[error] {
-		if state.commandSource != SourceInteractive || !state.interactiveInput {
+		fromProtectedDefault := state.commandSource == SourceDefaultCloth
+		fromInteractive := state.commandSource == SourceInteractive && state.interactiveInput
+		if !fromProtectedDefault && !fromInteractive {
 			return ungo.Some(fmt.Errorf("!trust requires direct interactive input"))
 		}
 		if len(command) < 2 {
@@ -127,16 +129,22 @@ func init() {
 			return ungo.Some(fmt.Errorf("workspace commands cannot be trusted as executables"))
 		}
 		kind, rule := ParseTrustRule(command[1])
-		fmt.Fprintf(os.Stderr, "Trust rule %q for this session (kind %d)? [y/N]: ", rule, kind)
-		var confirmation string
-		if _, err := fmt.Fscanln(os.Stdin, &confirmation); err != nil || !strings.EqualFold(confirmation, "y") && !strings.EqualFold(confirmation, "yes") {
-			fmt.Fprintln(os.Stderr, "trust entry not added")
-			return ungo.None[error]()
+		if fromInteractive {
+			fmt.Fprintf(os.Stderr, "Trust rule %q for this session (kind %d)? [y/N]: ", rule, kind)
+			var confirmation string
+			if _, err := fmt.Fscanln(os.Stdin, &confirmation); err != nil || !strings.EqualFold(confirmation, "y") && !strings.EqualFold(confirmation, "yes") {
+				fmt.Fprintln(os.Stderr, "trust entry not added")
+				return ungo.None[error]()
+			}
 		}
 
-		entry := TrustEntry{Rule: rule, Kind: kind, Source: SourceInteractive}
+		source := SourceInteractive
+		if fromProtectedDefault {
+			source = SourceDefaultCloth
+		}
+		entry := TrustEntry{Rule: rule, Kind: kind, Source: source}
 		state.trustStore.Add(entry)
-		fmt.Printf("trusted %s for this session (%d)\n", rule, kind)
+		fmt.Printf("trusted %s for this session from %s (%d)\n", rule, source, kind)
 		return ungo.None[error]()
 	})
 

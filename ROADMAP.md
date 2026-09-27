@@ -95,6 +95,7 @@ The trust list controls whether an external executable may run without explicit 
 - [ ] Never prompt for a password or treat this approval as administrator authorization.
 - [x] Default to `Do not run` when no interactive terminal is available.
 - [x] Treat commands loaded from `default.cloth` as exempt from the external trusted-list check, while still applying parsing and safety checks.
+- [x] Allow validated, protected `default.cloth` `!trust` directives to seed the current session's in-memory trust list; do not persist them outside the session.
 - [ ] Ensure only `default.cloth` may use `!toggle-security` during configuration loading.
 - [ ] Define how security state is restored after a `default.cloth` or gray-listed file finishes loading.
 - [ ] Define matching semantics before implementation:
@@ -161,7 +162,7 @@ The trust list controls whether an external executable may run without explicit 
 - [x] Keep `!trust`, trust inspection, and revocation session-local.
 - [ ] Add persistence only if a future user-approved design explicitly requests trust to outlive a Loin session.
 - [ ] Consider optional scope-local, temporary trust entries only as an isolated future feature.
-- [ ] Do not store executable trust entries in `.cloth` files, because those files can be loaded from untrusted projects.
+- [x] Do not allow arbitrary `.cloth` files to add trust; the validated, protected `default.cloth` is the only file allowed to seed in-memory session trust.
 - [ ] Document that scopes manage environment overrides and workspace state, not security authorization.
 
 ### Proposed user-facing behavior

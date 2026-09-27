@@ -47,7 +47,8 @@ main
                                                                                     └── v1.4.2-trust-store-permissions
                                                                                         └── v1.4.2-trust-store-locking
                                                                                             └── v1.4.2-session-scoped-trust
-                                                                                                └── v1.4.2-remove-persistent-trust-prototype (active)
+                                                                                                └── v1.4.2-remove-persistent-trust-prototype
+                                                                                                    └── v1.4.2-default-cloth-session-trust (active)
 ```
 
 Branches are intentionally used for potentially breaking security changes. After validation, feature branches are merged into `v1.4.2`, pushed, and then used as the base for the next isolated experiment.
@@ -173,10 +174,10 @@ The following foundations exist:
 - Command-source tracking.
 - Repository-local development configuration selection with `--cloth`.
 - Trust-rule matching for exact paths, basenames, and explicit globs.
-- Runtime trust rules exist only in memory for the current Loin process and are discarded on exit; prior persistent-store prototype code has been removed to avoid implying runtime approvals are shared.
+- Runtime trust rules exist only in memory for the current Loin process and are discarded on exit. A validated, protected `default.cloth` can explicitly seed that session's rules; unprotected cloth files cannot.
 - Workspace commands beginning with `!` are rejected as executable trust rules.
 - Direct-interactive trust management commands: `!trust`, `!trust-list`, and `!untrust`.
-- `!trust` requires a separate interactive confirmation before adding a rule for the current session; `!trust-list` and `!untrust` inspect and revoke only current-session rules.
+- Interactive `!trust` requires a separate confirmation; explicit `!trust` directives in validated, protected `default.cloth` seed only the current process. `!trust-list` and `!untrust` inspect and revoke only current-session rules.
 - Choosing “Trust for this session” at an execution prompt requires a second explicit confirmation; declining prevents that command's launch.
 - `!security-status` reports the active configuration path and source, configuration trust, current-session trust-rule count, and privilege state.
 - Explicitly selected `.cloth` files are validated as readable regular files and produce a development-mode warning when outside the protected default location.
