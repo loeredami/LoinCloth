@@ -215,6 +215,36 @@ func SaveTrustStore(path string, store TrustStore) error {
 	})
 }
 
+func SaveTrustStoreIfUnchanged(path string, expectedHash [32]byte, expectedExists bool, store TrustStore) ([32]byte, bool, error) {
+	var hash [32]byte
+	var exists bool
+	err := withTrustStoreLock(path, func() error {
+		currentData, err := readTrustStoreFile(path)
+		if os.IsNotExist(err) {
+			if expectedExists {
+				return fmt.Errorf("trust store changed since it was loaded")
+			}
+		} else if err != nil {
+			return err
+		} else {
+			if !expectedExists || sha256.Sum256(currentData) != expectedHash {
+				return fmt.Errorf("trust store changed since it was loaded")
+			}
+		}
+		if err := saveTrustStoreUnlocked(path, store); err != nil {
+			return err
+		}
+		data, err := readTrustStoreFile(path)
+		if err != nil {
+			return fmt.Errorf("verify saved trust store: %w", err)
+		}
+		hash = sha256.Sum256(data)
+		exists = true
+		return nil
+	})
+	return hash, exists, err
+}
+
 func saveTrustStoreUnlocked(path string, store TrustStore) error {
 	for _, entry := range store.Entries() {
 		if err := validateTrustEntry(entry); err != nil {

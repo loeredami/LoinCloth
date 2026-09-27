@@ -262,6 +262,7 @@ The trust list controls whether an external executable may run without explicit 
 
 - [ ] Define the trust-store location, ownership, permissions, format, locking, atomic updates, backup behavior, and corruption recovery.
 - [x] Serialize trust-store loads, snapshots, and atomic replacements across Loin processes with a protected OS-level file lock.
+- [x] Compare the loaded trust-store snapshot and commit each trust change under one lock; reject stale concurrent updates rather than silently overwriting them.
 - [x] Validate trust-store ownership and permissions, reject symlink/reparse-point files, and restrict trust-store directories/files to the current user where the platform supports it.
 - [x] Fail closed when the trust store cannot be loaded: discard in-memory entries, refuse inspection/mutation and persistent approval, and report the unavailable store instead of replacing it.
 - [x] Detect trust-store content modification or deletion after successful loading; invalidate in-memory entries and require explicit confirmed `!trust-reload` to reload.

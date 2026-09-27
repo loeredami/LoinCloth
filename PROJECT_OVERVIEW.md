@@ -175,7 +175,7 @@ The following foundations exist:
 - If the trust store fails validation at startup, its entries are discarded and trust inspection, changes, and persistent approvals are blocked; `!security-status` reports the unavailable store rather than presenting it as empty.
 - Trust-store content changes or deletion after loading invalidate in-memory entries; `!trust-reload` provides explicit, confirmed recovery after the store has been reviewed or repaired.
 - On Unix-like systems, the trust store must be owned by the current user, regular, non-symlink, and private; its directory is tightened to `0700` and file to `0600`. Windows loads validate owner and DACL protection before reading.
-- Trust-store loads, snapshots, and atomic replacements are serialized between Loin processes with a protected OS-level lock.
+- Trust-store loads, snapshots, and atomic replacements are serialized between Loin processes with a protected OS-level lock; updates reject stale snapshots rather than overwriting a concurrent change.
 - Trust-store adds, saves, loads, and matching reject workspace command rules beginning with `!`.
 - Direct-interactive trust management commands: `!trust`, `!trust-list`, and `!untrust`.
 - `!trust` requires a separate interactive confirmation before persisting a rule; declining does not modify the store.

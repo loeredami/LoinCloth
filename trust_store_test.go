@@ -130,6 +130,55 @@ func TestTrustStoreConcurrentReadAndWriteStaysValid(t *testing.T) {
 	}
 }
 
+func TestConcurrentTrustStoreTransactionsRejectStaleWriter(t *testing.T) {
+	path := trustStoreTestPath(t)
+	initial := TrustStore{}
+	initial.Add(TrustEntry{Rule: "/usr/bin/initial", Kind: TrustExactPath, Source: SourceInteractive})
+	if err := SaveTrustStore(path, initial); err != nil {
+		t.Fatalf("save initial trust store: %v", err)
+	}
+	_, expectedHash, expectedExists, err := loadTrustStoreSnapshot(path)
+	if err != nil {
+		t.Fatalf("read initial trust snapshot: %v", err)
+	}
+
+	type result struct {
+		rule string
+		err  error
+	}
+	results := make(chan result, 2)
+	for _, rule := range []string{"/usr/bin/first", "/usr/bin/second"} {
+		go func(rule string) {
+			candidate := TrustStore{}
+			candidate.Add(TrustEntry{Rule: rule, Kind: TrustExactPath, Source: SourceInteractive})
+			_, _, err := SaveTrustStoreIfUnchanged(path, expectedHash, expectedExists, candidate)
+			results <- result{rule: rule, err: err}
+		}(rule)
+	}
+
+	successes := 0
+	var winningRule string
+	for range 2 {
+		result := <-results
+		if result.err == nil {
+			successes++
+			winningRule = result.rule
+		} else if !strings.Contains(result.err.Error(), "changed since it was loaded") {
+			t.Fatalf("unexpected stale transaction error: %v", result.err)
+		}
+	}
+	if successes != 1 {
+		t.Fatalf("successful transactions = %d, want exactly 1", successes)
+	}
+	loaded, err := LoadTrustStore(path)
+	if err != nil {
+		t.Fatalf("load trust store after transactions: %v", err)
+	}
+	if len(loaded.Entries()) != 1 || loaded.Entries()[0].Rule != winningRule {
+		t.Fatalf("stale transaction overwrote committed rule: %#v, winner %q", loaded.Entries(), winningRule)
+	}
+}
+
 func TestTrustStoreLoadRejectsWorkspaceCommandRule(t *testing.T) {
 	path := trustStoreTestPath(t)
 	data := []byte(`{"version":1,"entries":[{"Rule":"!wear","Kind":1,"Source":0}]}`)

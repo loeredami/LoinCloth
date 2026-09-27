@@ -86,22 +86,11 @@ func promptExecutableTrust(state *State, executablePath string, output *bufio.Wr
 			}
 			state.trustStorePath = path
 		}
-		if err := trustStoreAvailable(state); err != nil {
+		if err := persistTrustStoreCandidate(state, candidate); err != nil {
 			fmt.Fprintf(output, "%v\n", err)
 			output.Flush()
 			return false
 		}
-		if err := SaveTrustStore(state.trustStorePath, candidate); err != nil {
-			fmt.Fprintf(output, "could not save trust entry: %v\n", err)
-			output.Flush()
-			return false
-		}
-		if err := recordTrustStoreSnapshot(state); err != nil {
-			fmt.Fprintf(output, "%v\n", err)
-			output.Flush()
-			return false
-		}
-		state.trustStore = candidate
 		return true
 	default:
 		fmt.Fprintln(output, "command denied")
