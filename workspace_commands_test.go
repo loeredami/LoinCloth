@@ -134,6 +134,51 @@ func TestWorkspaceCommandsRejectWorkspaceWithoutScopeList(t *testing.T) {
 	}
 }
 
+func TestWorkspaceAndScopeCommandsUseValidCurrentWorkspace(t *testing.T) {
+	state := stateWithScopes(1)
+	initialCount := state.workspaces.Size()
+
+	if result := HandleStateCommands(state, []string{"!new", "w"}); result.HasValue() {
+		t.Fatalf("creating workspace returned error: %v", result.Value())
+	}
+	if got := state.workspaces.Size(); got != initialCount+1 {
+		t.Fatalf("workspace count = %d, want %d", got, initialCount+1)
+	}
+
+	state.cur_workspace = initialCount
+	current, err := currentWorkspace(state)
+	if err != nil {
+		t.Fatalf("get newly created current workspace: %v", err)
+	}
+	if current.path != "" || current.scopes == nil || current.scopes.Size() != 0 {
+		t.Fatalf("new workspace was not initialized correctly: %#v", current)
+	}
+
+	if result := HandleStateCommands(state, []string{"!new", "s", "test-scope"}); result.HasValue() {
+		t.Fatalf("creating scope returned error: %v", result.Value())
+	}
+	if result := HandleStateCommands(state, []string{"!set", "LOIN_TEST_SCOPE_VALUE", "session-value"}); result.HasValue() {
+		t.Fatalf("setting scope variable returned error: %v", result.Value())
+	}
+	value := GetEnvValue(state, "LOIN_TEST_SCOPE_VALUE")
+	if !value.HasValue() || len(value.Value()) != 1 || value.Value()[0] != "session-value" {
+		t.Fatalf("scope variable = %v, want [session-value]", value)
+	}
+}
+
+func TestNewWorkspaceRejectsUnknownKindWithoutChangingState(t *testing.T) {
+	state := stateWithScopes(1)
+	count := state.workspaces.Size()
+
+	result := HandleStateCommands(state, []string{"!new", "workspace.go"})
+	if !result.HasValue() {
+		t.Fatal("unknown workspace kind unexpectedly succeeded")
+	}
+	if got := state.workspaces.Size(); got != count {
+		t.Fatalf("invalid !new changed workspace count to %d, want %d", got, count)
+	}
+}
+
 var benchmarkEnvValue ungo.Optional[[]string]
 
 func BenchmarkGetEnvValueManyScopes(b *testing.B) {
