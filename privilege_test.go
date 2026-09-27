@@ -107,6 +107,18 @@ func TestAdministratorPromptCanBeLoadedButNotChangedDuringSession(t *testing.T) 
 	}
 }
 
+func TestSecurityStatusReportsAdminSessionState(t *testing.T) {
+	state := newInputTestState()
+	state.administratorMode = true
+	var output bytes.Buffer
+	if err := writeSecurityStatus(state, &output); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(output.Bytes(), []byte("Privilege state: administrator")) {
+		t.Fatalf("security status omitted admin mode: %q", output.String())
+	}
+}
+
 func TestProcessExitStatusSupportsPlatformExitErrors(t *testing.T) {
 	if got := processExitStatus(commandExitError{code: 17}); got != 17 {
 		t.Fatalf("processExitStatus() = %d, want 17", got)

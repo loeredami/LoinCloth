@@ -117,7 +117,11 @@ func writeSecurityStatus(state *State, w io.Writer) error {
 	}
 	fmt.Fprintf(w, "Configuration trusted: %s\n", trusted)
 	fmt.Fprintf(w, "Session trust rules: %d (not saved between Loin launches)\n", len(state.trustStore.Entries()))
-	fmt.Fprintln(w, "Privilege state: normal (explicit elevation is not active)")
+	if state.administratorMode || isAdministrator() {
+		fmt.Fprintln(w, "Privilege state: administrator")
+	} else {
+		fmt.Fprintln(w, "Privilege state: normal")
+	}
 	return nil
 }
 

@@ -1065,7 +1065,6 @@ func runWithStdinPolicy(state *State, cmdArgs []string, w io.Writer, stdin io.Re
 		})
 		return status
 	}
-	return 0
 }
 
 func ReadConfiguration(state *State) {
