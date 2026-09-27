@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -139,14 +140,27 @@ func DefaultTrustStorePath() (string, error) {
 }
 
 func LoadTrustStore(path string) (TrustStore, error) {
+	store, _, _, err := loadTrustStoreSnapshot(path)
+	return store, err
+}
+
+func loadTrustStoreSnapshot(path string) (TrustStore, [32]byte, bool, error) {
 	data, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
-		return TrustStore{}, nil
+		return TrustStore{}, [32]byte{}, false, nil
 	}
 	if err != nil {
-		return TrustStore{}, err
+		return TrustStore{}, [32]byte{}, false, err
 	}
 
+	store, err := parseTrustStore(data)
+	if err != nil {
+		return TrustStore{}, [32]byte{}, false, err
+	}
+	return store, sha256.Sum256(data), true, nil
+}
+
+func parseTrustStore(data []byte) (TrustStore, error) {
 	var disk trustStoreFile
 	if err := json.Unmarshal(data, &disk); err != nil {
 		return TrustStore{}, fmt.Errorf("invalid trust store: %w", err)
@@ -163,6 +177,17 @@ func LoadTrustStore(path string) (TrustStore, error) {
 		store.Add(entry)
 	}
 	return store, nil
+}
+
+func trustStoreSnapshot(path string) ([32]byte, bool, error) {
+	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return [32]byte{}, false, nil
+	}
+	if err != nil {
+		return [32]byte{}, false, err
+	}
+	return sha256.Sum256(data), true, nil
 }
 
 func SaveTrustStore(path string, store TrustStore) error {

@@ -82,9 +82,42 @@ func writeLastStatus(state *State, w io.Writer) {
 }
 
 func trustStoreAvailable(state *State) error {
+	if state == nil {
+		return fmt.Errorf("trust store unavailable: no security state available")
+	}
+	if state.trustStoreError == nil && state.trustStoreTracked {
+		hash, exists, err := trustStoreSnapshot(state.trustStorePath)
+		if err != nil {
+			state.trustStore = TrustStore{}
+			state.trustStoreError = fmt.Errorf("cannot verify trust store: %w", err)
+		} else if exists != state.trustStoreExists || hash != state.trustStoreHash {
+			state.trustStore = TrustStore{}
+			state.trustStoreError = fmt.Errorf("trust store changed after loading; restart Loin to reload it")
+		}
+	}
 	if state.trustStoreError != nil {
 		return fmt.Errorf("trust store unavailable: %w", state.trustStoreError)
 	}
+	return nil
+}
+
+func recordTrustStoreSnapshot(state *State) error {
+	hash, exists, err := trustStoreSnapshot(state.trustStorePath)
+	if err != nil {
+		state.trustStore = TrustStore{}
+		state.trustStoreError = fmt.Errorf("cannot verify saved trust store: %w", err)
+		state.trustStoreTracked = false
+		return state.trustStoreError
+	}
+	if !exists {
+		state.trustStore = TrustStore{}
+		state.trustStoreError = fmt.Errorf("saved trust store is missing")
+		state.trustStoreTracked = false
+		return state.trustStoreError
+	}
+	state.trustStoreHash = hash
+	state.trustStoreExists = true
+	state.trustStoreTracked = true
 	return nil
 }
 
@@ -160,8 +193,14 @@ func init() {
 			}
 			state.trustStorePath = path
 		}
+		if err := trustStoreAvailable(state); err != nil {
+			return ungo.Some(err)
+		}
 		if err := SaveTrustStore(state.trustStorePath, candidate); err != nil {
 			return ungo.Some(fmt.Errorf("failed to save trust store: %v", err))
+		}
+		if err := recordTrustStoreSnapshot(state); err != nil {
+			return ungo.Some(err)
 		}
 		state.trustStore = candidate
 		fmt.Printf("trusted %s (%d)\n", rule, kind)
@@ -208,8 +247,14 @@ func init() {
 			}
 			state.trustStorePath = path
 		}
+		if err := trustStoreAvailable(state); err != nil {
+			return ungo.Some(err)
+		}
 		if err := SaveTrustStore(state.trustStorePath, candidate); err != nil {
 			return ungo.Some(fmt.Errorf("failed to save trust store: %v", err))
+		}
+		if err := recordTrustStoreSnapshot(state); err != nil {
+			return ungo.Some(err)
 		}
 		state.trustStore = candidate
 		fmt.Printf("removed trust entry %s\n", rule)

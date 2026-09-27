@@ -16,6 +16,10 @@ func authorizeExecutable(state *State, executablePath string, _ io.Writer) bool 
 		return false
 	}
 
+	if err := trustStoreAvailable(state); err != nil {
+		fmt.Fprintf(writer, "%v\n", err)
+		writer.Flush()
+	}
 	decision := EvaluateTrust(state.trustStore, executablePath, state.commandSource, state.interactiveInput)
 	switch decision {
 	case TrustAllow:
@@ -82,8 +86,18 @@ func promptExecutableTrust(state *State, executablePath string, output *bufio.Wr
 			}
 			state.trustStorePath = path
 		}
+		if err := trustStoreAvailable(state); err != nil {
+			fmt.Fprintf(output, "%v\n", err)
+			output.Flush()
+			return false
+		}
 		if err := SaveTrustStore(state.trustStorePath, candidate); err != nil {
 			fmt.Fprintf(output, "could not save trust entry: %v\n", err)
+			output.Flush()
+			return false
+		}
+		if err := recordTrustStoreSnapshot(state); err != nil {
+			fmt.Fprintf(output, "%v\n", err)
 			output.Flush()
 			return false
 		}

@@ -178,6 +178,113 @@ func TestCorruptTrustStoreFailsClosedAndManagementDoesNotOverwrite(t *testing.T)
 	}
 }
 
+func TestTrustStoreChangesAfterLoadFailClosed(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "trust.json")
+	original := TrustStore{}
+	original.Add(TrustEntry{Rule: "/usr/bin/original", Kind: TrustExactPath, Source: SourceInteractive})
+	if err := SaveTrustStore(path, original); err != nil {
+		t.Fatalf("save initial store: %v", err)
+	}
+
+	state := &State{}
+	if err := loadTrustStoreIntoState(state, path); err != nil {
+		t.Fatalf("load trust store: %v", err)
+	}
+	if !state.trustStore.Allows("/usr/bin/original") {
+		t.Fatal("initial trust entry was not loaded")
+	}
+
+	changed := TrustStore{}
+	changed.Add(TrustEntry{Rule: "/usr/bin/replacement", Kind: TrustExactPath, Source: SourceInteractive})
+	if err := SaveTrustStore(path, changed); err != nil {
+		t.Fatalf("replace trust store externally: %v", err)
+	}
+
+	if err := trustStoreAvailable(state); err == nil || !strings.Contains(err.Error(), "changed after loading") {
+		t.Fatalf("changed store availability error: got %v", err)
+	}
+	if len(state.trustStore.Entries()) != 0 {
+		t.Fatalf("stale trust entries remained active: %#v", state.trustStore.Entries())
+	}
+	if state.trustStore.Allows("/usr/bin/original") {
+		t.Fatal("stale trust entry remained authorized")
+	}
+}
+
+func TestChangedTrustStoreCannotAuthorizeCommand(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "trust.json")
+	store := TrustStore{}
+	store.Add(TrustEntry{Rule: "/usr/bin/example", Kind: TrustExactPath, Source: SourceInteractive})
+	if err := SaveTrustStore(path, store); err != nil {
+		t.Fatalf("save trust store: %v", err)
+	}
+	state := &State{commandSource: SourceNonInteractive}
+	if err := loadTrustStoreIntoState(state, path); err != nil {
+		t.Fatalf("load trust store: %v", err)
+	}
+	if err := os.WriteFile(path, []byte(`{"version":1,"entries":[]}`), 0600); err != nil {
+		t.Fatalf("modify trust store externally: %v", err)
+	}
+	if authorizeExecutable(state, "/usr/bin/example", nil) {
+		t.Fatal("command remained authorized by stale trust entry")
+	}
+}
+
+func TestTrustStoreDeletionAfterLoadFailsClosed(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "trust.json")
+	store := TrustStore{}
+	store.Add(TrustEntry{Rule: "/usr/bin/example", Kind: TrustExactPath, Source: SourceInteractive})
+	if err := SaveTrustStore(path, store); err != nil {
+		t.Fatalf("save trust store: %v", err)
+	}
+	state := &State{}
+	if err := loadTrustStoreIntoState(state, path); err != nil {
+		t.Fatalf("load trust store: %v", err)
+	}
+	if err := os.Remove(path); err != nil {
+		t.Fatalf("delete trust store externally: %v", err)
+	}
+	if err := trustStoreAvailable(state); err == nil || !strings.Contains(err.Error(), "changed after loading") {
+		t.Fatalf("deleted store availability error: got %v", err)
+	}
+	if len(state.trustStore.Entries()) != 0 {
+		t.Fatalf("deleted store trust remained active: %#v", state.trustStore.Entries())
+	}
+}
+
+func TestTrustMutationDoesNotOverwriteChangedStore(t *testing.T) {
+	withPromptInput(t, "y")
+	path := filepath.Join(t.TempDir(), "trust.json")
+	original := TrustStore{}
+	original.Add(TrustEntry{Rule: "/usr/bin/original", Kind: TrustExactPath, Source: SourceInteractive})
+	if err := SaveTrustStore(path, original); err != nil {
+		t.Fatalf("save initial store: %v", err)
+	}
+	state := &State{
+		commandSource:    SourceInteractive,
+		interactiveInput: true,
+	}
+	if err := loadTrustStoreIntoState(state, path); err != nil {
+		t.Fatalf("load initial store: %v", err)
+	}
+
+	external := []byte(`{"version":1,"entries":[{"Rule":"/usr/bin/external","Kind":0,"Source":0}]}`)
+	if err := os.WriteFile(path, external, 0600); err != nil {
+		t.Fatalf("modify store externally: %v", err)
+	}
+	result := HandleStateCommands(state, []string{"!trust", "/usr/bin/new"})
+	if !result.HasValue() || !strings.Contains(result.Value().Error(), "changed after loading") {
+		t.Fatalf("trust mutation did not reject changed store: %v", result)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read changed store: %v", err)
+	}
+	if !bytes.Equal(data, external) {
+		t.Fatalf("trust mutation overwrote external data: got %q, want %q", data, external)
+	}
+}
+
 func TestRejectedTrustStoreBlocksPersistentPromptChoice(t *testing.T) {
 	withPromptInput(t, "2")
 	path := filepath.Join(t.TempDir(), "trust.json")

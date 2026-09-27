@@ -262,7 +262,8 @@ The trust list controls whether an external executable may run without explicit 
 
 - [ ] Define the trust-store location, ownership, permissions, format, locking, atomic updates, backup behavior, and corruption recovery.
 - [x] Fail closed when the trust store cannot be loaded: discard in-memory entries, refuse inspection/mutation and persistent approval, and report the unavailable store instead of replacing it.
-- [ ] Detect trust-store modification after successful loading and define an explicit corruption-recovery procedure.
+- [x] Detect trust-store content modification or deletion after successful loading; invalidate in-memory entries and require restart to reload.
+- [ ] Define an explicit corruption-recovery procedure.
 - [ ] Resolve executable identity immediately before launch and define protections against time-of-check/time-of-use replacement.
 - [ ] Define whether trust is based on path, file identity, content hash, publisher/signature, or a combination of these.
 - [ ] Sanitize privileged child environments by default; explicitly define which variables and workspace overrides may cross the elevation boundary.

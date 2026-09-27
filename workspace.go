@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"strconv"
 
@@ -50,11 +51,14 @@ type State struct {
 	// It is the foundation for trust and gray-list decisions.
 	commandSource CommandSource
 
-	trustStore       TrustStore
-	trustStorePath   string
-	trustStoreError  error
-	interactiveInput bool
-	lastExitCode     int
+	trustStore        TrustStore
+	trustStorePath    string
+	trustStoreError   error
+	trustStoreHash    [sha256.Size]byte
+	trustStoreExists  bool
+	trustStoreTracked bool
+	interactiveInput  bool
+	lastExitCode      int
 }
 
 func (ws *Workspace) Encode() []byte {

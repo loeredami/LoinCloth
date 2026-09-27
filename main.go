@@ -1115,6 +1115,9 @@ func InitializeTrustStore(state *State) {
 	state.trustStorePath = ""
 	state.trustStore = TrustStore{}
 	state.trustStoreError = nil
+	state.trustStoreHash = [32]byte{}
+	state.trustStoreExists = false
+	state.trustStoreTracked = false
 	path, err := DefaultTrustStorePath()
 	if err != nil {
 		state.trustStoreError = err
@@ -1128,14 +1131,18 @@ func InitializeTrustStore(state *State) {
 
 func loadTrustStoreIntoState(state *State, path string) error {
 	state.trustStorePath = path
-	store, err := LoadTrustStore(path)
+	store, hash, exists, err := loadTrustStoreSnapshot(path)
 	if err != nil {
 		state.trustStore = TrustStore{}
 		state.trustStoreError = err
+		state.trustStoreTracked = false
 		return err
 	}
 	state.trustStore = store
 	state.trustStoreError = nil
+	state.trustStoreHash = hash
+	state.trustStoreExists = exists
+	state.trustStoreTracked = true
 	return nil
 }
 
