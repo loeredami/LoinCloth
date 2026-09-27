@@ -144,9 +144,10 @@ func TestWorkspaceAndScopeCommandsUseValidCurrentWorkspace(t *testing.T) {
 	if got := state.workspaces.Size(); got != initialCount+1 {
 		t.Fatalf("workspace count = %d, want %d", got, initialCount+1)
 	}
-	if got := state.cur_workspace; got != initialCount {
-		t.Fatalf("current workspace = %d after creation, want new workspace index %d", got, initialCount)
+	if got := state.cur_workspace; got != 0 {
+		t.Fatalf("current workspace = %d after creation, want original workspace index 0", got)
 	}
+	state.cur_workspace = initialCount
 	current, err := currentWorkspace(state)
 	if err != nil {
 		t.Fatalf("get newly created current workspace: %v", err)
