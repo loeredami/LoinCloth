@@ -155,15 +155,21 @@ func validateProtectedHandle(handle syscall.Handle, expectDirectory bool, ownerS
 	if daclPresent == 0 || descriptorDACL == 0 {
 		return fmt.Errorf("missing or unrestricted DACL")
 	}
+	return validateProtectedDACL(descriptorDACL, trustedSIDs)
+}
 
+func validateProtectedDACL(dacl uintptr, trustedSIDs []uintptr) error {
+	if dacl == 0 {
+		return fmt.Errorf("missing or unrestricted DACL")
+	}
 	var aclInfo aclSizeInfo
-	ok, _, callErr = procGetAclInformation.Call(descriptorDACL, uintptr(unsafe.Pointer(&aclInfo)), unsafe.Sizeof(aclInfo), aclSizeInformation)
+	ok, _, callErr := procGetAclInformation.Call(dacl, uintptr(unsafe.Pointer(&aclInfo)), unsafe.Sizeof(aclInfo), aclSizeInformation)
 	if ok == 0 {
 		return fmt.Errorf("read DACL information: %w", callErr)
 	}
 	for index := uint32(0); index < aclInfo.AceCount; index++ {
 		var ace uintptr
-		ok, _, callErr = procGetAce.Call(descriptorDACL, uintptr(index), uintptr(unsafe.Pointer(&ace)))
+		ok, _, callErr = procGetAce.Call(dacl, uintptr(index), uintptr(unsafe.Pointer(&ace)))
 		if ok == 0 {
 			return fmt.Errorf("read DACL entry: %w", callErr)
 		}

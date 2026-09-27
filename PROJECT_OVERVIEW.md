@@ -139,7 +139,7 @@ GOOS=windows GOARCH=amd64 \
   go test -exec wine ./...
 ```
 
-Wine can catch basic startup and command-processing regressions; it does not validate native Windows ACL semantics, access tokens, UAC, or `runas` behavior. In the current Wine prefix, the default config directory grants access to `Everyone`, so LoinCloth correctly treats it as gray-listed. The integration test for accepting a private DACL skips because Wine preserves the broad `Everyone` ACE despite the test attempting to set a restrictive DACL; tests requiring Unix utilities also skip under Wine. Accepted-ACL behavior still needs native Windows verification.
+Wine can catch basic startup and command-processing regressions; it does not validate native Windows ACL semantics, access tokens, UAC, or `runas` behavior. In the current Wine prefix, the default config directory grants access to `Everyone`, so LoinCloth correctly treats it as gray-listed. The test that reads a file under a private current-user ACL skips if the runtime temp directory grants access to an untrusted SID; tests requiring Unix utilities also skip under Wine. The synthetic DACL policy tests pass, but native Windows verification of actual ACL handling is still needed.
 
 ## Security work status
 

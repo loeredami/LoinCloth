@@ -14,20 +14,16 @@ import (
 )
 
 const (
-	testACLRevision              = 2
-	testDACLInformation          = 0x00000004
-	testProtectedDACLInformation = 0x80000000
-	testWriteDAC                 = 0x00040000
-	testFileAllAccess            = 0x001F01FF
-	testACLHeaderSize            = 8
-	testACEHeaderAndMaskSize     = 8
+	testACLRevision          = 2
+	testFileAllAccess        = 0x001F01FF
+	testACLHeaderSize        = 8
+	testACEHeaderAndMaskSize = 8
 )
 
 var (
 	testAdvapi32            = syscall.NewLazyDLL("advapi32.dll")
 	testInitializeACL       = testAdvapi32.NewProc("InitializeAcl")
 	testAddAccessAllowedACE = testAdvapi32.NewProc("AddAccessAllowedAce")
-	testSetSecurityInfo     = testAdvapi32.NewProc("SetSecurityInfo")
 )
 
 func TestProtectedACEPolicy(t *testing.T) {
@@ -78,19 +74,54 @@ func TestIsTrustedSID(t *testing.T) {
 	}
 }
 
-func TestReadProtectedDefaultClothAcceptsPrivateDACL(t *testing.T) {
+func TestValidateProtectedDACLAcceptsApprovedSIDs(t *testing.T) {
+	current, err := user.Current()
+	if err != nil {
+		t.Fatalf("identify current user: %v", err)
+	}
+	sidStrings := []string{current.Uid, "S-1-5-18", "S-1-5-32-544"}
+	acl, storage, sids := makeTestDACL(t, sidStrings)
+	trusted := make([]uintptr, len(sids))
+	for i, sid := range sids {
+		trusted[i] = uintptr(sid)
+	}
+
+	if err := validateProtectedDACL(acl, trusted); err != nil {
+		t.Fatalf("DACL with approved SIDs was rejected: %v", err)
+	}
+	runtime.KeepAlive(storage)
+}
+
+func TestValidateProtectedDACLRejectsEveryone(t *testing.T) {
+	current, err := user.Current()
+	if err != nil {
+		t.Fatalf("identify current user: %v", err)
+	}
+	sidStrings := []string{current.Uid, "S-1-5-18", "S-1-5-32-544", "S-1-1-0"}
+	acl, storage, sids := makeTestDACL(t, sidStrings)
+	trusted := make([]uintptr, len(sids)-1)
+	for i, sid := range sids[:len(sids)-1] {
+		trusted[i] = uintptr(sid)
+	}
+
+	err = validateProtectedDACL(acl, trusted)
+	if err == nil || !strings.Contains(err.Error(), "S-1-1-0") {
+		t.Fatalf("expected Everyone SID to be rejected, got %v", err)
+	}
+	runtime.KeepAlive(storage)
+}
+
+func TestReadProtectedDefaultClothAcceptsCurrentPrivateACL(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "default.cloth")
 	if err := os.WriteFile(path, []byte("!set secure yes\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	setTestProtectedDACL(t, dir, true, false)
-	setTestProtectedDACL(t, path, false, false)
 
 	got, err := readProtectedDefaultCloth(path)
 	if err != nil {
-		if strings.Contains(err.Error(), "S-1-1-0") {
-			t.Skipf("runtime did not apply the restrictive DACL to the test directory: %v", err)
+		if strings.Contains(err.Error(), "DACL grants access to an untrusted SID") {
+			t.Skipf("test temp directory ACL is not private enough for the acceptance case: %v", err)
 		}
 		t.Fatalf("private default.cloth was rejected: %v", err)
 	}
@@ -99,39 +130,15 @@ func TestReadProtectedDefaultClothAcceptsPrivateDACL(t *testing.T) {
 	}
 }
 
-func TestReadProtectedDefaultClothRejectsEveryoneDACL(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "default.cloth")
-	if err := os.WriteFile(path, []byte("!set untrusted yes\n"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	setTestProtectedDACL(t, dir, true, true)
-	setTestProtectedDACL(t, path, false, false)
-
-	if _, err := readProtectedDefaultCloth(path); err == nil {
-		t.Fatal("default.cloth with an Everyone DACL was accepted")
-	} else if !strings.Contains(err.Error(), "S-1-1-0") {
-		t.Fatalf("rejection did not identify the Everyone SID: %v", err)
-	}
-}
-
-func setTestProtectedDACL(t *testing.T, path string, isDirectory, includeEveryone bool) {
+func makeTestDACL(t *testing.T, sidStrings []string) (uintptr, []uint32, []syscall.Handle) {
 	t.Helper()
-	current, err := user.Current()
-	if err != nil {
-		t.Fatalf("identify current user: %v", err)
-	}
-	sidStrings := []string{current.Uid, "S-1-5-18", "S-1-5-32-544"}
-	if includeEveryone {
-		sidStrings = append(sidStrings, "S-1-1-0")
-	}
-
 	sids := make([]syscall.Handle, 0, len(sidStrings))
-	defer func() {
+	t.Cleanup(func() {
 		for _, sid := range sids {
 			freeLocalMemory(sid)
 		}
-	}()
+	})
+
 	aclLength := testACLHeaderSize
 	for _, sidString := range sidStrings {
 		sid, err := sidFromString(sidString)
@@ -143,8 +150,8 @@ func setTestProtectedDACL(t *testing.T, path string, isDirectory, includeEveryon
 		aclLength += testACEHeaderAndMaskSize + int(length)
 	}
 
-	aclStorage := make([]uint32, (aclLength+3)/4)
-	acl := uintptr(unsafe.Pointer(&aclStorage[0]))
+	storage := make([]uint32, (aclLength+3)/4)
+	acl := uintptr(unsafe.Pointer(&storage[0]))
 	ok, _, callErr := testInitializeACL.Call(acl, uintptr(aclLength), testACLRevision)
 	if ok == 0 {
 		t.Fatalf("initialize test ACL: %v", callErr)
@@ -155,21 +162,6 @@ func setTestProtectedDACL(t *testing.T, path string, isDirectory, includeEveryon
 			t.Fatalf("add allowed ACE: %v", callErr)
 		}
 	}
-
-	flags := uint32(fileFlagOpenReparse)
-	if isDirectory {
-		flags |= fileFlagBackupSemantics
-	}
-	handle, err := openForACL(path, testWriteDAC|readControl|fileReadAttributes, fileShareRead|fileShareWrite|fileShareDelete, flags)
-	if err != nil {
-		t.Fatalf("open %q to set test DACL: %v", path, err)
-	}
-	defer handle.Close()
-
-	securityInformation := uintptr(testDACLInformation | testProtectedDACLInformation)
-	result, _, _ := testSetSecurityInfo.Call(uintptr(handle.Fd()), seFileObject, securityInformation, 0, 0, acl, 0, 0)
-	if result != 0 {
-		t.Fatalf("set test DACL: %v", syscall.Errno(result))
-	}
-	runtime.KeepAlive(aclStorage)
+	runtime.KeepAlive(sids)
+	return acl, storage, sids
 }
