@@ -65,6 +65,10 @@ func TestTrustPromptTrustsExactPathForCurrentSession(t *testing.T) {
 	if !strings.Contains(output.String(), "Trust for this session") {
 		t.Fatalf("prompt did not say trust is session-scoped: %q", output.String())
 	}
+	nextSession := &State{}
+	if nextSession.trustStore.Allows("/usr/bin/example") {
+		t.Fatal("session trust was inherited by a new state")
+	}
 }
 
 func TestTrustPromptDeclinedSessionTrustDoesNotAuthorize(t *testing.T) {
@@ -144,53 +148,6 @@ func TestTrustCommandRejectsWorkspaceCommandTargets(t *testing.T) {
 	}
 	if len(state.trustStore.Entries()) != 0 {
 		t.Fatalf("workspace trust targets changed in-memory store: %#v", state.trustStore.Entries())
-	}
-}
-
-func TestSessionTrustDoesNotLoadFromOrWritePersistentStore(t *testing.T) {
-	path := trustStoreTestPath(t)
-	persisted := TrustStore{}
-	persisted.Add(TrustEntry{Rule: "/usr/bin/persisted", Kind: TrustExactPath, Source: SourceInteractive})
-	if err := SaveTrustStore(path, persisted); err != nil {
-		t.Fatalf("seed legacy store: %v", err)
-	}
-
-	state := &State{commandSource: SourceInteractive, interactiveInput: true}
-	if state.trustStore.Allows("/usr/bin/persisted") {
-		t.Fatal("new session inherited trust from disk")
-	}
-	withPromptInput(t, "yes")
-	if result := HandleStateCommands(state, []string{"!trust", "/usr/bin/session"}); result.HasValue() {
-		t.Fatalf("session trust command failed: %v", result.Value())
-	}
-
-	loaded, err := LoadTrustStore(path)
-	if err != nil {
-		t.Fatalf("read legacy store after session trust: %v", err)
-	}
-	if !loaded.Allows("/usr/bin/persisted") || loaded.Allows("/usr/bin/session") {
-		t.Fatalf("session trust modified persistent file: %#v", loaded.Entries())
-	}
-}
-
-func TestUntrustRemovesOnlyCurrentSessionRule(t *testing.T) {
-	path := trustStoreTestPath(t)
-	persisted := TrustStore{}
-	persisted.Add(TrustEntry{Rule: "/usr/bin/example", Kind: TrustExactPath, Source: SourceInteractive})
-	if err := SaveTrustStore(path, persisted); err != nil {
-		t.Fatalf("seed legacy store: %v", err)
-	}
-	state := &State{commandSource: SourceInteractive, interactiveInput: true}
-	state.trustStore.Add(TrustEntry{Rule: "/usr/bin/example", Kind: TrustExactPath, Source: SourceInteractive})
-	if result := HandleStateCommands(state, []string{"!untrust", "/usr/bin/example"}); result.HasValue() {
-		t.Fatalf("session untrust failed: %v", result.Value())
-	}
-	if state.trustStore.Allows("/usr/bin/example") {
-		t.Fatal("session trust rule was not removed")
-	}
-	loaded, err := LoadTrustStore(path)
-	if err != nil || !loaded.Allows("/usr/bin/example") {
-		t.Fatalf("session untrust modified legacy persistent file: entries=%#v err=%v", loaded.Entries(), err)
 	}
 }
 

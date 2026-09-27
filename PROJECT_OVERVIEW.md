@@ -46,7 +46,8 @@ main
                                                                                 └── v1.4.2-trust-store-recovery
                                                                                     └── v1.4.2-trust-store-permissions
                                                                                         └── v1.4.2-trust-store-locking
-                                                                                            └── v1.4.2-session-scoped-trust (active)
+                                                                                            └── v1.4.2-session-scoped-trust
+                                                                                                └── v1.4.2-remove-persistent-trust-prototype (active)
 ```
 
 Branches are intentionally used for potentially breaking security changes. After validation, feature branches are merged into `v1.4.2`, pushed, and then used as the base for the next isolated experiment.
@@ -67,9 +68,9 @@ Branches are intentionally used for potentially breaking security changes. After
 | `workspace_commands.go` | Workspace and `!` command implementations, including environment and scope variable lookup. |
 | `workspace_commands_test.go` | Scope/environment lookup regression tests and a many-scope benchmark. |
 | `command_source.go` | Command-origin classification: interactive input, `default.cloth`, `.cloth`, and development cloth. |
-| `trust_store.go` | Trust-rule matching and standalone persistence prototype; runtime trust is session-local. |
+| `trust_store.go` | In-memory trust-rule matching for the current session. |
 | `trust_policy.go` | Pure trust decision policy: allow, prompt, or deny. |
-| `trust_*_test.go` | Trust matching, persistence, and policy tests. |
+| `trust_*_test.go` | Session trust matching, prompt, and policy tests. |
 | `default.cloth` | Repository-local development configuration. |
 | `run_dev.sh` | Builds `loin-dev` and runs it with the repository `default.cloth`. |
 | `ROADMAP.md` | Active v1.4.2 security, privilege, trust, and testing plan. |
@@ -172,9 +173,8 @@ The following foundations exist:
 - Command-source tracking.
 - Repository-local development configuration selection with `--cloth`.
 - Trust-rule matching for exact paths, basenames, and explicit globs.
-- A standalone versioned trust-store persistence prototype with validation, atomic writes, ownership/permission checks, and cross-process locking; runtime approvals are intentionally not loaded from or saved to it.
-- Runtime trust rules exist only in memory for the current Loin process and are discarded on exit.
-- Trust-store adds, saves, loads, and matching reject workspace command rules beginning with `!`.
+- Runtime trust rules exist only in memory for the current Loin process and are discarded on exit; prior persistent-store prototype code has been removed to avoid implying runtime approvals are shared.
+- Workspace commands beginning with `!` are rejected as executable trust rules.
 - Direct-interactive trust management commands: `!trust`, `!trust-list`, and `!untrust`.
 - `!trust` requires a separate interactive confirmation before adding a rule for the current session; `!trust-list` and `!untrust` inspect and revoke only current-session rules.
 - Choosing “Trust for this session” at an execution prompt requires a second explicit confirmation; declining prevents that command's launch.

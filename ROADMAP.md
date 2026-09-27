@@ -56,7 +56,7 @@ The trust list controls whether an external executable may run without explicit 
 - [x] Add interactive `Run Once` / `Trust for this session` / `Do not run` approval handling.
 - [x] Deny unknown non-interactive external commands before launch.
 - [x] Require approval for commands sourced from non-default `.cloth` files, even when their executable is trusted.
-- [x] Add an explicit confirmation step before persisting trust from `!trust`.
+- [x] Add an explicit confirmation step before adding session trust from `!trust`.
 - [ ] Define the default policy: deny external executables unless they are trusted or the command is explicitly elevated with `sudo`.
 - [ ] Define a native-command policy separate from workspace commands.
 - [ ] Allow explicitly approved native operating-system commands to run under the native-command policy.
@@ -80,8 +80,8 @@ The trust list controls whether an external executable may run without explicit 
   !untrust explorer
   ```
 - [x] Restrict `!trust` to native/external executable targets; reject targets beginning with `!`.
-- [x] Reject `!` workspace command rules in trust-store insertion, persistence, loading, and matching.
-- [ ] Add confirmation prompts before persisting trust entries.
+- [x] Reject `!` workspace command rules in session trust insertion and matching.
+- [x] Require confirmation before adding a trust rule to the current session.
 - [x] Ensure commands loaded from non-default `.cloth` files cannot silently create trusted entries.
 - [ ] Define gray-list inspection, approval, revocation, and audit output.
 - [ ] Propagate command source through nested `!wear` loads so commands retain their original file context.
@@ -156,11 +156,10 @@ The trust list controls whether an external executable may run without explicit 
 
 #### Trust list versus scopes
 
-- [ ] Keep the security trust list separate from workspace scopes by default.
-- [ ] Decide whether to retain or remove the standalone persistent trust-store prototype; current runtime trust is session-scoped.
-- [x] Add an isolated versioned trust-store persistence prototype with validation, restrictive temporary-file permissions, atomic replacement, and removal support (not connected to runtime authorization).
+- [x] Keep executable trust separate from workspace scopes and session-local by default.
+- [x] Remove the unused persistent trust-store prototype so approvals cannot accidentally be shared across Loin launches.
 - [x] Keep `!trust`, trust inspection, and revocation session-local.
-- [ ] Integrate a persistent store with command authorization; not desired in the current session-specific design.
+- [ ] Add persistence only if a future user-approved design explicitly requests trust to outlive a Loin session.
 - [ ] Consider optional scope-local, temporary trust entries only as an isolated future feature.
 - [ ] Do not store executable trust entries in `.cloth` files, because those files can be loaded from untrusted projects.
 - [ ] Document that scopes manage environment overrides and workspace state, not security authorization.
@@ -261,7 +260,6 @@ The trust list controls whether an external executable may run without explicit 
 - [ ] If pre-access enforcement is unavailable, fail closed or clearly label the feature as audit-only rather than claiming it provides protection.
 
 - [x] Keep executable approval trust local to each Loin process; do not load shared or persistent entries into a running session.
-- [ ] Define persistence behavior only if persistent trust is explicitly reintroduced in a future design.
 - [ ] Resolve executable identity immediately before launch and define protections against time-of-check/time-of-use replacement.
 - [ ] Define whether trust is based on path, file identity, content hash, publisher/signature, or a combination of these.
 - [ ] Sanitize privileged child environments by default; explicitly define which variables and workspace overrides may cross the elevation boundary.

@@ -1,10 +1,7 @@
 package main
 
 import (
-	"crypto/sha256"
-	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 )
@@ -25,11 +22,6 @@ type TrustEntry struct {
 
 type TrustStore struct {
 	entries []TrustEntry
-}
-
-type trustStoreFile struct {
-	Version int          `json:"version"`
-	Entries []TrustEntry `json:"entries"`
 }
 
 func isWorkspaceTrustRule(rule string) bool {
@@ -107,10 +99,6 @@ func (store TrustStore) Entries() []TrustEntry {
 	return append([]TrustEntry(nil), store.entries...)
 }
 
-func (store TrustStore) Clone() TrustStore {
-	return TrustStore{entries: store.Entries()}
-}
-
 func (store *TrustStore) Remove(entry TrustEntry) bool {
 	for i, existing := range store.entries {
 		if existing == entry {
@@ -129,143 +117,6 @@ func (store *TrustStore) RemoveRule(kind TrustMatchKind, rule string) bool {
 		}
 	}
 	return false
-}
-
-func DefaultTrustStorePath() (string, error) {
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(configDir, ".loin", "trust.json"), nil
-}
-
-func LoadTrustStore(path string) (TrustStore, error) {
-	store, _, _, err := loadTrustStoreSnapshot(path)
-	return store, err
-}
-
-func loadTrustStoreSnapshot(path string) (TrustStore, [32]byte, bool, error) {
-	var store TrustStore
-	var hash [32]byte
-	var exists bool
-	err := withTrustStoreLock(path, func() error {
-		var err error
-		store, hash, exists, err = loadTrustStoreSnapshotUnlocked(path)
-		return err
-	})
-	return store, hash, exists, err
-}
-
-func loadTrustStoreSnapshotUnlocked(path string) (TrustStore, [32]byte, bool, error) {
-	data, err := readTrustStoreFile(path)
-	if os.IsNotExist(err) {
-		return TrustStore{}, [32]byte{}, false, nil
-	}
-	if err != nil {
-		return TrustStore{}, [32]byte{}, false, err
-	}
-
-	store, err := parseTrustStore(data)
-	if err != nil {
-		return TrustStore{}, [32]byte{}, false, err
-	}
-	return store, sha256.Sum256(data), true, nil
-}
-
-func parseTrustStore(data []byte) (TrustStore, error) {
-	var disk trustStoreFile
-	if err := json.Unmarshal(data, &disk); err != nil {
-		return TrustStore{}, fmt.Errorf("invalid trust store: %w", err)
-	}
-	if disk.Version != 1 {
-		return TrustStore{}, fmt.Errorf("unsupported trust store version %d", disk.Version)
-	}
-
-	store := TrustStore{}
-	for _, entry := range disk.Entries {
-		if err := validateTrustEntry(entry); err != nil {
-			return TrustStore{}, fmt.Errorf("invalid trust store: %w", err)
-		}
-		store.Add(entry)
-	}
-	return store, nil
-}
-
-func trustStoreSnapshot(path string) ([32]byte, bool, error) {
-	var hash [32]byte
-	var exists bool
-	err := withTrustStoreLock(path, func() error {
-		data, err := readTrustStoreFile(path)
-		if os.IsNotExist(err) {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-		hash = sha256.Sum256(data)
-		exists = true
-		return nil
-	})
-	return hash, exists, err
-}
-
-func SaveTrustStore(path string, store TrustStore) error {
-	return withTrustStoreLock(path, func() error {
-		return saveTrustStoreUnlocked(path, store)
-	})
-}
-
-func saveTrustStoreUnlocked(path string, store TrustStore) error {
-	for _, entry := range store.Entries() {
-		if err := validateTrustEntry(entry); err != nil {
-			return fmt.Errorf("cannot save invalid trust entry: %w", err)
-		}
-	}
-
-	data, err := json.MarshalIndent(trustStoreFile{
-		Version: 1,
-		Entries: store.Entries(),
-	}, "", "  ")
-	if err != nil {
-		return err
-	}
-	data = append(data, '\n')
-
-	if err := prepareTrustStoreDirectory(filepath.Dir(path)); err != nil {
-		return err
-	}
-	if err := validateTrustStoreReplacement(path); err != nil {
-		return err
-	}
-	temporary, err := os.CreateTemp(filepath.Dir(path), ".trust-store-*.tmp")
-	if err != nil {
-		return err
-	}
-	temporaryName := temporary.Name()
-	defer os.Remove(temporaryName)
-	if err := temporary.Chmod(0600); err != nil {
-		temporary.Close()
-		return err
-	}
-	if err := validateTrustStoreReplacement(temporary.Name()); err != nil {
-		temporary.Close()
-		return err
-	}
-	if _, err := temporary.Write(data); err != nil {
-		temporary.Close()
-		return err
-	}
-	if err := temporary.Sync(); err != nil {
-		temporary.Close()
-		return err
-	}
-	if err := temporary.Close(); err != nil {
-		return err
-	}
-	if err := validateTrustStoreReplacement(path); err != nil {
-		return err
-	}
-	return os.Rename(temporaryName, path)
 }
 
 func ParseTrustRule(rule string) (TrustMatchKind, string) {
