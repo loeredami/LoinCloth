@@ -1,6 +1,7 @@
 package main
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/loeredami/ungo"
@@ -62,6 +63,74 @@ func TestGetEnvValueDistinguishesUnsetAndEmptyEnvironment(t *testing.T) {
 	value = GetEnvValue(state, key+"_UNSET")
 	if value.HasValue() {
 		t.Fatalf("unset environment variable unexpectedly found: %#v", value.Value())
+	}
+}
+
+func TestGetEnvValueHandlesMissingWorkspaceState(t *testing.T) {
+	states := []*State{
+		nil,
+		{},
+		{workspaces: ungo.NewLinkedList[*Workspace]()},
+		{workspaces: ungo.ListOf[*Workspace](nil)},
+		{workspaces: ungo.ListOf(&Workspace{})},
+		{
+			workspaces:    ungo.ListOf(&Workspace{scopes: ungo.NewLinkedList[*Scope]()}),
+			cur_workspace: 1,
+		},
+	}
+	for i, state := range states {
+		if value := GetEnvValue(state, "PATH"); value.HasValue() {
+			t.Errorf("state %d unexpectedly returned environment value %#v", i, value.Value())
+		}
+	}
+}
+
+func TestWorkspaceCommandsRejectMissingCurrentWorkspace(t *testing.T) {
+	commands := [][]string{
+		{"!new", "w"},
+		{"!new", "s", "scope"},
+		{"!label", "workspace"},
+		{"!drop", "scope"},
+		{"!set", "KEY", "value"},
+		{"!set-ifn", "KEY", "value"},
+		{"!snapshot-ws", filepath.Join(t.TempDir(), "snapshot.cloth")},
+	}
+	states := []struct {
+		name  string
+		state *State
+	}{
+		{name: "no workspaces", state: &State{workspaces: ungo.NewLinkedList[*Workspace]()}},
+		{name: "invalid current index", state: &State{
+			workspaces:    ungo.ListOf(&Workspace{scopes: ungo.NewLinkedList[*Scope]()}),
+			cur_workspace: 1,
+		}},
+	}
+
+	for _, test := range states {
+		t.Run(test.name, func(t *testing.T) {
+			for _, command := range commands {
+				result := HandleStateCommands(test.state, command)
+				if !result.HasValue() {
+					t.Errorf("%v unexpectedly succeeded without a current workspace", command)
+				}
+			}
+		})
+	}
+}
+
+func TestWorkspaceCommandsRejectWorkspaceWithoutScopeList(t *testing.T) {
+	state := &State{
+		workspaces: ungo.ListOf(&Workspace{}),
+	}
+	for _, command := range [][]string{
+		{"!new", "s", "scope"},
+		{"!set", "KEY", "value"},
+		{"!snapshot-ws", filepath.Join(t.TempDir(), "snapshot.cloth")},
+	} {
+		result := HandleStateCommands(state, command)
+		if !result.HasValue() {
+			t.Errorf("%v unexpectedly succeeded with a malformed workspace", command)
+		}
 	}
 }
 

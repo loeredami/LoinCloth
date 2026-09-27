@@ -26,9 +26,27 @@ func HandleStateCommands(state *State, command []string) ungo.Optional[error] {
 	return ungo.Some(fmt.Errorf("unrecognized internal command: %s", command[0]))
 }
 
+func currentWorkspace(state *State) (*Workspace, error) {
+	if state == nil || state.workspaces == nil {
+		return nil, fmt.Errorf("no current workspace")
+	}
+	workspace := state.workspaces.Get(state.cur_workspace)
+	if !workspace.HasValue() || workspace.Value() == nil {
+		return nil, fmt.Errorf("current workspace at index %d does not exist", state.cur_workspace)
+	}
+	current := workspace.Value()
+	if current.scopes == nil {
+		return nil, fmt.Errorf("current workspace at index %d has no scope list", state.cur_workspace)
+	}
+	return current, nil
+}
+
 func GetEnvValue(state *State, key string) ungo.Optional[[]string] {
+	if state == nil || state.workspaces == nil {
+		return ungo.None[[]string]()
+	}
 	wsOpt := state.workspaces.Get(state.cur_workspace)
-	if !wsOpt.HasValue() {
+	if !wsOpt.HasValue() || wsOpt.Value() == nil || wsOpt.Value().scopes == nil {
 		return ungo.None[[]string]()
 	}
 	ws := wsOpt.Value()
@@ -186,23 +204,28 @@ func init() {
 
 		switch command[1] {
 		case "w":
+			current, err := currentWorkspace(state)
+			if err != nil {
+				return ungo.Some(err)
+			}
 			state.workspaces.Add(&Workspace{
 				name:   "",
-				path:   state.workspaces.Get(state.cur_workspace).Value().path,
+				path:   current.path,
 				scopes: ungo.NewLinkedList[*Scope](),
 			})
 		case "s":
 			if len(command) < 3 {
 				return ungo.Some(fmt.Errorf("error creating scope: no name given"))
 			}
+			current, err := currentWorkspace(state)
+			if err != nil {
+				return ungo.Some(err)
+			}
 			scope := &Scope{
 				name:      command[2],
 				overrides: ungo.NewSmallMap[string, string](256),
 			}
-
-			state.workspaces.Get(state.cur_workspace).IfPresent(func(w *Workspace) {
-				w.scopes.Add(scope)
-			})
+			current.scopes.Add(scope)
 		default:
 			return ungo.Some(fmt.Errorf("expected argument 'workspace'"))
 		}
@@ -212,6 +235,9 @@ func init() {
 	RegisterCmd("!switch", func(state *State, command []string) ungo.Optional[error] {
 		if len(command) < 2 {
 			return ungo.Some(fmt.Errorf("expected index or label of workspace"))
+		}
+		if state.workspaces == nil {
+			return ungo.Some(fmt.Errorf("no workspaces are available"))
 		}
 
 		var found_label bool = false
@@ -242,7 +268,12 @@ func init() {
 		prev := state.cur_workspace
 		state.cur_workspace = int(idx)
 
-		err = os.Chdir(state.workspaces.Get(state.cur_workspace).Value().path)
+		workspace := state.workspaces.Get(state.cur_workspace)
+		if !workspace.HasValue() || workspace.Value() == nil {
+			state.cur_workspace = prev
+			return ungo.Some(fmt.Errorf("workspace at %d does not exist", idx))
+		}
+		err = os.Chdir(workspace.Value().path)
 
 		if err != nil {
 			state.cur_workspace = prev
@@ -256,6 +287,9 @@ func init() {
 	RegisterCmd("!close", func(state *State, command []string) ungo.Optional[error] {
 		if len(command) < 2 {
 			return ungo.Some(fmt.Errorf("expected index of workspace"))
+		}
+		if state.workspaces == nil {
+			return ungo.Some(fmt.Errorf("no workspaces are available"))
 		}
 
 		idx, err := strconv.ParseUint(command[1], 10, 64)
@@ -284,6 +318,9 @@ func init() {
 		if len(command) < 2 {
 			return ungo.Some(fmt.Errorf("expected index of workspace"))
 		}
+		if state.workspaces == nil {
+			return ungo.Some(fmt.Errorf("no workspaces are available"))
+		}
 
 		idx, err := strconv.ParseUint(command[1], 10, 64)
 
@@ -295,7 +332,11 @@ func init() {
 			return ungo.Some(fmt.Errorf("workspace at %d does not exist.", idx))
 		}
 
-		state.workspaces.Add(state.workspaces.Get(int(idx)).Value().Clone())
+		workspace := state.workspaces.Get(int(idx))
+		if !workspace.HasValue() || workspace.Value() == nil {
+			return ungo.Some(fmt.Errorf("workspace at %d does not exist", idx))
+		}
+		state.workspaces.Add(workspace.Value().Clone())
 		return ungo.None[error]()
 	})
 
@@ -304,19 +345,19 @@ func init() {
 			return ungo.Some(fmt.Errorf("expected name of scope"))
 		}
 		var found_scope bool = false
-		state.workspaces.Get(state.cur_workspace).IfPresent(func(w *Workspace) {
-			w.scopes.ForEach(func(idx int, sc *Scope) {
-				if found_scope {
-					return
-				}
-				if sc.name == command[1] {
-					w.scopes.Get(idx).Value().overrides.Clear()
-					w.scopes.Remove(idx)
-					found_scope = true
-					return
-				}
-			})
-
+		workspace, err := currentWorkspace(state)
+		if err != nil {
+			return ungo.Some(err)
+		}
+		workspace.scopes.ForEach(func(idx int, sc *Scope) {
+			if found_scope {
+				return
+			}
+			if sc.name == command[1] {
+				sc.overrides.Clear()
+				workspace.scopes.Remove(idx)
+				found_scope = true
+			}
 		})
 
 		if !found_scope {
@@ -330,10 +371,14 @@ func init() {
 			return ungo.Some(fmt.Errorf("expected name of field and value"))
 		}
 
-		if state.workspaces.Get(state.cur_workspace).Value().scopes.Size() == 0 {
+		workspace, err := currentWorkspace(state)
+		if err != nil {
+			return ungo.Some(err)
+		}
+		if workspace.scopes.Size() == 0 {
 			return ungo.Some(fmt.Errorf("no scopes currently open"))
 		}
-		scopes := state.workspaces.Get(state.cur_workspace).Value().scopes
+		scopes := workspace.scopes
 
 		GetEnvValue(state, command[1]).IfAbsent(func(*[]string) {
 			scopes.Get(scopes.Size() - 1).IfPresent(func(s *Scope) {
@@ -348,10 +393,14 @@ func init() {
 			return ungo.Some(fmt.Errorf("expected name of field and value"))
 		}
 
-		if state.workspaces.Get(state.cur_workspace).Value().scopes.Size() == 0 {
+		workspace, err := currentWorkspace(state)
+		if err != nil {
+			return ungo.Some(err)
+		}
+		if workspace.scopes.Size() == 0 {
 			return ungo.Some(fmt.Errorf("no scopes currently open"))
 		}
-		scopes := state.workspaces.Get(state.cur_workspace).Value().scopes
+		scopes := workspace.scopes
 
 		scopes.Get(scopes.Size() - 1).IfPresent(func(s *Scope) {
 			s.overrides.Set(command[1], command[2])
@@ -493,7 +542,11 @@ func init() {
 			return ungo.Some(fmt.Errorf("expected label for workspace"))
 		}
 
-		state.workspaces.Get(state.cur_workspace).Value().name = command[1]
+		workspace, err := currentWorkspace(state)
+		if err != nil {
+			return ungo.Some(err)
+		}
+		workspace.name = command[1]
 
 		return ungo.None[error]()
 	})
@@ -513,7 +566,11 @@ func init() {
 		if len(command) < 2 {
 			return ungo.Some(fmt.Errorf("expected .cloth file"))
 		}
-		scopes := state.workspaces.Get(state.cur_workspace).Value().scopes
+		workspace, err := currentWorkspace(state)
+		if err != nil {
+			return ungo.Some(err)
+		}
+		scopes := workspace.scopes
 
 		scope := scopes.Get(scopes.Size() - 1)
 
@@ -536,10 +593,13 @@ func init() {
 		if len(command) < 2 {
 			return ungo.Some(fmt.Errorf("expected .cloth file"))
 		}
-		ws := state.workspaces.Get(state.cur_workspace).Value()
+		ws, err := currentWorkspace(state)
+		if err != nil {
+			return ungo.Some(err)
+		}
 
 		failure := ungo.None[error]()
-		err := os.WriteFile(command[1], ws.Encode(), 0644)
+		err = os.WriteFile(command[1], ws.Encode(), 0644)
 		if err != nil {
 			failure = ungo.Some(err)
 		}
