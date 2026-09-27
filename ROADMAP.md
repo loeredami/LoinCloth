@@ -46,13 +46,13 @@ Security changes should not begin until the existing parser and interactive-inpu
 
 - [ ] Ordinary commands must never be elevated automatically.
 - [ ] LoinCloth must not request administrator access during startup, prompt rendering, trust approval, or ordinary command execution.
-- [ ] Block switching the shell into superuser/administrator mode through ordinary commands or `sudo` prefixes.
-- [ ] Allow persistent administrator mode only through the direct interactive command `!access-administrator`.
-- [ ] Leave administrator mode only through the direct interactive command `!exit-administrator` or shell termination.
-- [ ] Elevation must be requested explicitly by the user and only through the administrator-mode flow.
+- [ ] Block switching the shell into superuser/administrator mode through ordinary commands or one-command `sudo` prefixes.
+- [ ] Allow persistent administrator mode only through the direct interactive command `!enter-admin`.
+- [ ] Leave administrator mode only through the direct interactive command `!exit-admin` or shell termination.
+- [ ] Require explicit user input for elevation: `sudo <command>` elevates one command, while `!enter-admin` requests persistent administrator mode.
 - [ ] A process that requests its own privilege mechanism may handle that request itself; LoinCloth must not preemptively request elevation.
-- [ ] `!access-administrator` and `!exit-administrator` must be rejected when sourced from any `.cloth` file, including `default.cloth`.
-- [ ] These commands must require direct interactive user input and must not be reachable through `!wear`, `!wear-ns`, pipelines, braces, aliases, or configuration loading.
+- [ ] `!enter-admin` and `!exit-admin` must be rejected when sourced from any `.cloth` file, including `default.cloth`.
+- [ ] These commands must require direct interactive user input and must not be reachable through `!wear`, pipelines, braces, aliases, or configuration loading.
 - [ ] LoinCloth must never read, store, echo, or log sudo/UAC credentials.
 - [ ] Privilege detection must be informational and must not be treated as authorization.
 - [ ] Always use the configured `sudo-prompt` string while administrator mode is active.
@@ -180,8 +180,8 @@ The trust list controls whether an external executable may run without explicit 
 
 ### Proposed user-facing behavior
 
-- [ ] Add direct-input-only `!access-administrator` to enter administrator mode.
-- [ ] Add direct-input-only `!exit-administrator` to leave administrator mode.
+- [ ] Add direct-input-only `!enter-admin` to enter persistent administrator mode on both Unix and Windows.
+- [ ] Add direct-input-only `!exit-admin` to leave persistent administrator mode on both Unix and Windows.
 - [ ] Make `sudo command arguments` unavailable as a mechanism for switching the persistent shell into administrator mode.
 - [ ] Make `sudo command arguments` a LoinCloth-owned built-in on Unix and Windows.
 - [ ] Resolve the LoinCloth `sudo` built-in before normal executable lookup, intentionally overriding a native `sudo.exe` with the same command name.
@@ -201,6 +201,7 @@ The trust list controls whether an external executable may run without explicit 
 - [ ] Resolve the LoinCloth `sudo` built-in before executable lookup.
 - [ ] Delegate the built-in to the system `sudo` executable.
 - [ ] Do not replace or emulate the system's authentication, policy, timestamp, or logging behavior.
+- [ ] Implement `!enter-admin` / `!exit-admin` as the Unix persistent administrator-shell workflow using the system `sudo` mechanism; exiting returns to the ordinary shell.
 
 - [ ] Execute explicit elevated commands through the system `sudo` executable only when the user explicitly enters `sudo`.
 - [ ] Do not invoke sudo proactively to test whether a command needs privileges.
@@ -216,6 +217,7 @@ The trust list controls whether an external executable may run without explicit 
 
 - [ ] Resolve the LoinCloth `sudo` built-in before executable lookup, including when native `sudo.exe` exists.
 - [ ] Use native UAC `runas` as the default Windows elevation backend, immediately before an explicitly requested elevated command.
+- [ ] Implement `!enter-admin` / `!exit-admin` as the Windows persistent administrator-shell workflow using explicit UAC elevation; the elevated process uses its administrator token for normal Windows ACL access checks, without changing ACLs. Keep the commands platform-neutral and return to the ordinary shell on exit.
 - [ ] Treat native Windows `sudo.exe` as an explicit compatibility option, not the default resolution for `sudo`.
 - [ ] Clearly report that the LoinCloth built-in selected the UAC backend.
 - [ ] Never request UAC merely because LoinCloth is running unelevated or because an ordinary command failed.
