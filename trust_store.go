@@ -31,6 +31,23 @@ type trustStoreFile struct {
 	Entries []TrustEntry `json:"entries"`
 }
 
+func isWorkspaceTrustRule(rule string) bool {
+	return strings.HasPrefix(strings.TrimSpace(rule), "!")
+}
+
+func validateTrustEntry(entry TrustEntry) error {
+	if strings.TrimSpace(entry.Rule) == "" {
+		return fmt.Errorf("trust entry contains an empty rule")
+	}
+	if isWorkspaceTrustRule(entry.Rule) {
+		return fmt.Errorf("workspace commands cannot be trusted as executables")
+	}
+	if entry.Kind < TrustExactPath || entry.Kind > TrustGlob {
+		return fmt.Errorf("trust entry contains an invalid rule kind %d", entry.Kind)
+	}
+	return nil
+}
+
 func normalizeExecutablePath(path string) string {
 	if absolute, err := filepath.Abs(path); err == nil {
 		path = absolute
@@ -47,7 +64,7 @@ func executableBaseName(path string) string {
 }
 
 func (entry TrustEntry) Matches(executablePath string) bool {
-	if entry.Rule == "" || executablePath == "" {
+	if entry.Rule == "" || isWorkspaceTrustRule(entry.Rule) || executablePath == "" {
 		return false
 	}
 
@@ -65,7 +82,7 @@ func (entry TrustEntry) Matches(executablePath string) bool {
 }
 
 func (store *TrustStore) Add(entry TrustEntry) {
-	if entry.Rule == "" {
+	if validateTrustEntry(entry) != nil {
 		return
 	}
 	for _, existing := range store.entries {
@@ -140,11 +157,8 @@ func LoadTrustStore(path string) (TrustStore, error) {
 
 	store := TrustStore{}
 	for _, entry := range disk.Entries {
-		if entry.Rule == "" {
-			return TrustStore{}, fmt.Errorf("trust store contains an empty rule")
-		}
-		if entry.Kind < TrustExactPath || entry.Kind > TrustGlob {
-			return TrustStore{}, fmt.Errorf("trust store contains an invalid rule kind %d", entry.Kind)
+		if err := validateTrustEntry(entry); err != nil {
+			return TrustStore{}, fmt.Errorf("invalid trust store: %w", err)
 		}
 		store.Add(entry)
 	}
@@ -152,6 +166,12 @@ func LoadTrustStore(path string) (TrustStore, error) {
 }
 
 func SaveTrustStore(path string, store TrustStore) error {
+	for _, entry := range store.Entries() {
+		if err := validateTrustEntry(entry); err != nil {
+			return fmt.Errorf("cannot save invalid trust entry: %w", err)
+		}
+	}
+
 	data, err := json.MarshalIndent(trustStoreFile{
 		Version: 1,
 		Entries: store.Entries(),

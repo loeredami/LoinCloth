@@ -80,6 +80,7 @@ The trust list controls whether an external executable may run without explicit 
   !untrust explorer
   ```
 - [x] Restrict `!trust` to native/external executable targets; reject targets beginning with `!`.
+- [x] Reject `!` workspace command rules in trust-store insertion, persistence, loading, and matching.
 - [ ] Add confirmation prompts before persisting trust entries.
 - [x] Ensure commands loaded from non-default `.cloth` files cannot silently create trusted entries.
 - [ ] Define gray-list inspection, approval, revocation, and audit output.

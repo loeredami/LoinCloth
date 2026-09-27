@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -60,6 +61,25 @@ func TestTrustStoreDeduplicatesEntries(t *testing.T) {
 	}
 }
 
+func TestTrustStoreRejectsWorkspaceCommandRules(t *testing.T) {
+	for _, rule := range []string{"!wear", " !wear", "!wear*"} {
+		t.Run(rule, func(t *testing.T) {
+			entry := TrustEntry{Rule: rule, Kind: TrustBasename, Source: SourceInteractive}
+			var store TrustStore
+			store.Add(entry)
+			if len(store.Entries()) != 0 {
+				t.Fatalf("workspace rule was added: %#v", store.Entries())
+			}
+			if entry.Matches("!wear") {
+				t.Fatal("workspace rule matched an executable")
+			}
+			if store.Allows("!wear") {
+				t.Fatal("workspace command was authorized")
+			}
+		})
+	}
+}
+
 func TestTrustStorePersistsAndLoads(t *testing.T) {
 	path := t.TempDir() + "/trust.json"
 	original := TrustStore{}
@@ -75,6 +95,30 @@ func TestTrustStorePersistsAndLoads(t *testing.T) {
 	}
 	if len(loaded.Entries()) != 2 || !loaded.Allows("/usr/bin/example") || !loaded.Allows("/usr/bin/python3") {
 		t.Fatalf("loaded trust entries did not match: %#v", loaded.Entries())
+	}
+}
+
+func TestTrustStoreLoadRejectsWorkspaceCommandRule(t *testing.T) {
+	path := t.TempDir() + "/trust.json"
+	data := []byte(`{"version":1,"entries":[{"Rule":"!wear","Kind":1,"Source":0}]}`)
+	if err := os.WriteFile(path, data, 0600); err != nil {
+		t.Fatalf("write invalid trust store: %v", err)
+	}
+	if _, err := LoadTrustStore(path); err == nil || !strings.Contains(err.Error(), "workspace commands") {
+		t.Fatalf("workspace trust rule error: got %v", err)
+	}
+}
+
+func TestTrustStoreSaveRejectsWorkspaceCommandRule(t *testing.T) {
+	path := t.TempDir() + "/trust.json"
+	store := TrustStore{entries: []TrustEntry{
+		{Rule: "!wear", Kind: TrustBasename, Source: SourceInteractive},
+	}}
+	if err := SaveTrustStore(path, store); err == nil || !strings.Contains(err.Error(), "workspace commands") {
+		t.Fatalf("workspace trust rule save error: got %v", err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("invalid trust store was written, stat error: %v", err)
 	}
 }
 

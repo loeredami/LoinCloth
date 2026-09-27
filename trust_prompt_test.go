@@ -154,6 +154,26 @@ func TestTrustCommandPersistsOnlyAfterConfirmation(t *testing.T) {
 	}
 }
 
+func TestTrustCommandRejectsWorkspaceCommandTargets(t *testing.T) {
+	state := &State{
+		commandSource:    SourceInteractive,
+		interactiveInput: true,
+		trustStorePath:   filepath.Join(t.TempDir(), "trust.json"),
+	}
+	for _, target := range []string{"!wear", "!wear*"} {
+		result := HandleStateCommands(state, []string{"!trust", target})
+		if !result.HasValue() || !strings.Contains(result.Value().Error(), "workspace commands") {
+			t.Fatalf("target %q was not rejected: %v", target, result)
+		}
+	}
+	if len(state.trustStore.Entries()) != 0 {
+		t.Fatalf("workspace trust targets changed in-memory store: %#v", state.trustStore.Entries())
+	}
+	if _, err := os.Stat(state.trustStorePath); !os.IsNotExist(err) {
+		t.Fatalf("workspace trust targets created trust store, stat error: %v", err)
+	}
+}
+
 func TestTrustPromptRejectsOtherChoice(t *testing.T) {
 	withPromptInput(t, "3")
 	state := &State{}
