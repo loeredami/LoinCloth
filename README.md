@@ -24,7 +24,11 @@ Current features include:
 - Initial trust-rule matching and persistent trust-store prototypes.
 - A development configuration override through `--cloth`.
 
-Security enforcement and administrator elevation remain experimental and are not complete. See [`ROADMAP.md`](ROADMAP.md) for the current design and branch status.
+Blank input does nothing. Each pipeline stage requires a command, and a stage can have at most one input and one output redirection. Repeated or malformed operators and empty command names are rejected.
+
+External-only pipelines run concurrently with operating-system pipes. Pipelines with internal commands or buffered redirections run sequentially and hold intermediate output in memory. Pipeline failure reporting is not yet uniform: external-only pipelines report the final stage's failure, while buffered pipelines stop on a failed stage. See [`SHELL_OPERATORS.md`](SHELL_OPERATORS.md) for details.
+
+Security enforcement and administrator elevation remain experimental and are not complete. Unknown external commands are denied for non-interactive input. Interactive unknown commands can prompt for per-command approval; commands loaded from non-default `.cloth` files require approval even when the executable is trusted. Selecting a development config with `--cloth` does not grant the default configuration's trust exemption. LoinCloth does not automatically elevate ordinary commands. See [`ROADMAP.md`](ROADMAP.md) for remaining security work.
 
 See [`SHELL_OPERATORS.md`](SHELL_OPERATORS.md) for interactive input and shell operator details.
 
@@ -41,6 +45,27 @@ This creates a local `loin-dev` executable and loads `./default.cloth`. To selec
 ```sh
 go run . --cloth path/to/development.cloth
 ```
+
+An explicitly selected file must be a readable regular file. LoinCloth warns when it is outside the protected default configuration location; it is treated as a development source, not as trusted `default.cloth`.
+
+### Testing
+
+Run the Go test suite and build the supported platform binaries with:
+
+```sh
+go test ./...
+go build .
+./build_all.sh
+```
+
+To smoke-test status output and non-interactive command handling from a regular terminal:
+
+```sh
+printf '%s\n' '!security-status' 'exit' | go run . --cloth default.cloth
+printf '%s\n' '/usr/bin/printf should-be-blocked' 'exit' | go run . --cloth default.cloth
+```
+
+The second example uses a Unix executable path and should be denied when it is not trusted. The repository `default.cloth` is a development config, so startup warns about its source.
 
 ### Build artifacts
 
