@@ -14,10 +14,10 @@ The project currently has three related goals:
 
 ## Current Git state
 
-The stable experiment base is `v1.4.2`; the active isolated work branch is:
+The stable experiment base and current integration branch is:
 
 ```text
-v1.4.2-ungo-command-registry-benchmark
+v1.4.2
 ```
 
 The current security branch is based on the following progression:
@@ -50,10 +50,10 @@ main
                                                                                             └── v1.4.2-session-scoped-trust
                                                                                                 └── v1.4.2-remove-persistent-trust-prototype
                                                                                                     └── v1.4.2-default-cloth-session-trust
-                                                                                                        └── v1.4.2-ungo-command-registry-benchmark (active)
+                                                                                                        └── v1.4.2-ungo-command-registry-benchmark (integrated)
 ```
 
-Branches are intentionally used for potentially breaking security changes. After validation, feature branches are merged into `v1.4.2`, pushed, and then used as the base for the next isolated experiment.
+Branches are used for potentially breaking security changes. Once their tests and requested runtime checks are confirmed, merge the validated work into `v1.4.2`; avoid leaving completed experiments isolated on long-lived branches.
 
 ## Important files
 
