@@ -16,7 +16,7 @@ The project currently has two related goals:
 The active development line is:
 
 ```text
-v1.4.2-confirm-prompt-persistence
+v1.4.2-smallmap-child-environment
 ```
 
 The current security branch is based on the following progression:
@@ -37,6 +37,9 @@ main
                                             └── v1.4.2-readme-current-behavior
                                                 └── v1.4.2-pipeline-status
                                                     └── v1.4.2-confirm-prompt-persistence (active)
+                                                        └── v1.4.2-env-scope-lookup
+                                                            └── v1.4.2-child-environment-map
+                                                                └── v1.4.2-smallmap-child-environment (active)
 ```
 
 Branches are intentionally used for potentially breaking security changes. After validation, feature branches are merged into `v1.4.2`, pushed, and then used as the base for the next isolated experiment.
@@ -156,6 +159,7 @@ The following foundations exist:
 - Parser rejects empty command names, malformed/repeated redirections, and pipe stages without commands; blank input remains a no-op.
 - `!last-status` reports the previous non-empty command's status. External-only pipelines use the final stage's status; buffered pipelines stop at the first failed stage.
 - Scope overrides use `ungo.SmallMap`; environment lookup uses `os.LookupEnv` and visits scope overrides in one forward pass, preserving newest-scope precedence. The 64-scope benchmark dropped from about 4.25 us/92 allocations to 0.36 us/6 allocations per lookup on the development machine; rerun the benchmark for local results.
+- Child process environments are assembled with `ungo.SmallMap` while preserving host environment values and applying scope overrides in order. In fair local benchmarks (same parsing and output construction), this took about 6.5 us/88 allocations versus 7.5 us/90 allocations for a built-in map, with about 6 KB more temporary allocation. The legacy path measured about 18 us/345 allocations. Rerun `go test -run '^$' -bench '^BenchmarkCommandEnvironment' -benchmem` to compare locally.
 - Pasted interactive batches preserve commands across the input buffer boundary; continuation, CRLF, and Ctrl+C cancellation are covered by tests.
 - Nested `!wear` command source is tracked and restored, including loads initiated by the default-configuration source.
 - Command-source tracking.

@@ -511,26 +511,37 @@ func parsePipeline(state *State, tokens []Token) ([]PipelineCommand, error) {
 }
 
 func commandEnvironment(state *State) []string {
-	envMap := make(map[string]string)
-	for _, e := range os.Environ() {
-		pair := strings.SplitN(e, "=", 2)
-		if len(pair) == 2 {
-			envMap[pair[0]] = pair[1]
+	environment := os.Environ()
+	overrideCount := 0
+	if state != nil {
+		state.workspaces.Get(state.cur_workspace).IfPresent(func(ws *Workspace) {
+			ws.scopes.ForEach(func(idx int, s *Scope) {
+				overrideCount += s.overrides.Size()
+			})
+		})
+	}
+
+	envMap := ungo.NewSmallMap[string, string](len(environment) + overrideCount)
+	for _, entry := range environment {
+		key, value, ok := strings.Cut(entry, "=")
+		if ok {
+			envMap.Set(key, value)
 		}
 	}
 	if state != nil {
 		state.workspaces.Get(state.cur_workspace).IfPresent(func(ws *Workspace) {
-			ws.scopes.ForEach(func(idx int, s *Scope) {
-				s.overrides.ForEach(func(key string, val string) {
-					envMap[key] = val
+			ws.scopes.ForEach(func(_ int, scope *Scope) {
+				scope.overrides.ForEach(func(key, value string) {
+					envMap.Set(key, value)
 				})
 			})
 		})
 	}
-	finalEnv := make([]string, 0, len(envMap))
-	for k, v := range envMap {
-		finalEnv = append(finalEnv, fmt.Sprintf("%s=%s", k, v))
-	}
+
+	finalEnv := make([]string, 0, envMap.Size())
+	envMap.ForEach(func(key, value string) {
+		finalEnv = append(finalEnv, key+"="+value)
+	})
 	return finalEnv
 }
 
