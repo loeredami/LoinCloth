@@ -252,6 +252,83 @@ func TestTrustStoreDeletionAfterLoadFailsClosed(t *testing.T) {
 	}
 }
 
+func TestTrustStoreRecoveryRequiresConfirmationAndReloadsValidFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "trust.json")
+	initial := TrustStore{}
+	initial.Add(TrustEntry{Rule: "/usr/bin/original", Kind: TrustExactPath, Source: SourceInteractive})
+	if err := SaveTrustStore(path, initial); err != nil {
+		t.Fatalf("save initial store: %v", err)
+	}
+	state := &State{
+		commandSource:    SourceInteractive,
+		interactiveInput: true,
+	}
+	if err := loadTrustStoreIntoState(state, path); err != nil {
+		t.Fatalf("load initial store: %v", err)
+	}
+
+	repaired := TrustStore{}
+	repaired.Add(TrustEntry{Rule: "/usr/bin/repaired", Kind: TrustExactPath, Source: SourceInteractive})
+	if err := SaveTrustStore(path, repaired); err != nil {
+		t.Fatalf("write reviewed store: %v", err)
+	}
+	if err := trustStoreAvailable(state); err == nil {
+		t.Fatal("modified store was not detected")
+	}
+
+	withPromptInput(t, "n")
+	declined := HandleStateCommands(state, []string{"!trust-reload"})
+	if declined.HasValue() {
+		t.Fatalf("declined reload returned error: %v", declined.Value())
+	}
+	if state.trustStoreError == nil || len(state.trustStore.Entries()) != 0 {
+		t.Fatal("declining reload restored trust")
+	}
+
+	withPromptInput(t, "y")
+	reloaded := HandleStateCommands(state, []string{"!trust-reload"})
+	if reloaded.HasValue() {
+		t.Fatalf("confirmed reload failed: %v", reloaded.Value())
+	}
+	if state.trustStoreError != nil {
+		t.Fatalf("trust store remains unavailable after reload: %v", state.trustStoreError)
+	}
+	if !state.trustStore.Allows("/usr/bin/repaired") || state.trustStore.Allows("/usr/bin/original") {
+		t.Fatalf("reloaded trust entries are incorrect: %#v", state.trustStore.Entries())
+	}
+}
+
+func TestTrustStoreRecoveryKeepsInvalidFileFailClosed(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "trust.json")
+	initial := TrustStore{}
+	initial.Add(TrustEntry{Rule: "/usr/bin/original", Kind: TrustExactPath, Source: SourceInteractive})
+	if err := SaveTrustStore(path, initial); err != nil {
+		t.Fatalf("save initial store: %v", err)
+	}
+	state := &State{
+		commandSource:    SourceInteractive,
+		interactiveInput: true,
+	}
+	if err := loadTrustStoreIntoState(state, path); err != nil {
+		t.Fatalf("load initial store: %v", err)
+	}
+	if err := os.WriteFile(path, []byte(`{"version":99,"entries":[]}`), 0600); err != nil {
+		t.Fatalf("corrupt trust store: %v", err)
+	}
+	if err := trustStoreAvailable(state); err == nil {
+		t.Fatal("corrupt store modification was not detected")
+	}
+
+	withPromptInput(t, "y")
+	result := HandleStateCommands(state, []string{"!trust-reload"})
+	if !result.HasValue() || !strings.Contains(result.Value().Error(), "unsupported trust store version 99") {
+		t.Fatalf("invalid recovery result: %v", result)
+	}
+	if state.trustStoreError == nil || len(state.trustStore.Entries()) != 0 {
+		t.Fatal("invalid trust store reload did not remain fail-closed")
+	}
+}
+
 func TestTrustMutationDoesNotOverwriteChangedStore(t *testing.T) {
 	withPromptInput(t, "y")
 	path := filepath.Join(t.TempDir(), "trust.json")

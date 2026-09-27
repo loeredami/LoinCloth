@@ -261,6 +261,34 @@ func init() {
 		return ungo.None[error]()
 	})
 
+	RegisterCmd("!trust-reload", func(state *State, command []string) ungo.Optional[error] {
+		if state.commandSource != SourceInteractive || !state.interactiveInput {
+			return ungo.Some(fmt.Errorf("!trust-reload requires direct interactive input"))
+		}
+		if state.trustStoreError == nil {
+			return ungo.Some(fmt.Errorf("trust store is available; no reload is needed"))
+		}
+		fmt.Fprint(os.Stderr, "Reload trust store from disk? [y/N]: ")
+		var confirmation string
+		if _, err := fmt.Fscanln(os.Stdin, &confirmation); err != nil ||
+			(!strings.EqualFold(strings.TrimSpace(confirmation), "y") && !strings.EqualFold(strings.TrimSpace(confirmation), "yes")) {
+			fmt.Fprintln(os.Stderr, "trust store reload declined")
+			return ungo.None[error]()
+		}
+		if state.trustStorePath == "" {
+			path, err := DefaultTrustStorePath()
+			if err != nil {
+				return ungo.Some(fmt.Errorf("cannot locate trust store: %w", err))
+			}
+			state.trustStorePath = path
+		}
+		if err := loadTrustStoreIntoState(state, state.trustStorePath); err != nil {
+			return ungo.Some(fmt.Errorf("trust store reload failed: %w", err))
+		}
+		fmt.Printf("trust store reloaded (%d entries)\n", len(state.trustStore.Entries()))
+		return ungo.None[error]()
+	})
+
 	RegisterCmd("!new", func(state *State, command []string) ungo.Optional[error] {
 		if len(command) < 2 {
 			return ungo.Some(fmt.Errorf("expected argument 'w' for workspace or 's' for scope"))
