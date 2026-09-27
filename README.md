@@ -32,6 +32,8 @@ Security enforcement and administrator elevation remain experimental. Unknown ex
 
 Explicit `sudo <command>` requests elevation for one command after the target executable passes Loin's trust check. On Unix, Loin delegates authentication and policy to system `sudo`; on Windows, it requests UAC elevation with the `runas` verb. Windows elevated commands currently require a standalone command without pipelines or redirection and run as a separate process; their output is not yet forwarded to the original Loin console. Direct interactive `!enter-admin` starts a separate elevated Loin session; `!exit-admin` returns to the original session. The elevated session starts in the current directory but initializes its own workspace and session trust state. Neither elevation path is invoked automatically. Native Windows console/UAC behavior still requires verification. See [`ROADMAP.md`](ROADMAP.md) for remaining work.
 
+When Loin creates a new per-user `default.cloth`, it adds session trust rules for a small OS-specific set of read-only informational commands. Unix defaults are `whoami`, `id`, `uname`, `uptime`, and `pwd`; Windows defaults are `whoami.exe`, `hostname.exe`, `tasklist.exe`, `systeminfo.exe`, and `where.exe`. These are basename rules loaded only from a validated, protected `default.cloth`; an existing file is never overwritten or augmented automatically.
+
 See [`SHELL_OPERATORS.md`](SHELL_OPERATORS.md) for interactive input and shell operator details.
 
 ### Development environment
