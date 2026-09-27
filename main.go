@@ -964,6 +964,7 @@ func ReadConfiguration(state *State) {
 	} else {
 		data, err = os.ReadFile(configFilePath)
 	}
+	state.configSource = source
 	if err != nil {
 		fmt.Printf("Error reading configuration: %v\n", err)
 		return
@@ -975,6 +976,45 @@ func ReadConfiguration(state *State) {
 			RunStringFromSource(state, line, source)
 		}
 	}
+}
+
+func validateSelectedCloth(path string) error {
+	info, err := os.Lstat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("configuration file %q does not exist", path)
+		}
+		return fmt.Errorf("configuration file %q is unreadable: %w", path, err)
+	}
+	if info.IsDir() {
+		return fmt.Errorf("configuration path %q is a directory, not a file", path)
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("configuration path %q is not a regular file", path)
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("configuration file %q is unreadable: %w", path, err)
+	}
+	return f.Close()
+}
+
+func selectedClothWarning(path string) string {
+	defaultDir, err := os.UserConfigDir()
+	if err != nil {
+		return fmt.Sprintf("Warning: selected configuration %q is outside the protected default configuration location.", path)
+	}
+	defaultPath := filepath.Join(defaultDir, ".loin", "default.cloth")
+	selectedAbs, err := filepath.Abs(path)
+	if err != nil {
+		return fmt.Sprintf("Warning: selected configuration %q is outside the protected default configuration location.", path)
+	}
+	defaultAbs, err := filepath.Abs(defaultPath)
+	if err != nil || filepath.Clean(selectedAbs) != filepath.Clean(defaultAbs) {
+		return fmt.Sprintf("Warning: selected configuration %q is outside the protected default configuration location.", path)
+	}
+	return ""
 }
 
 func InitializeTrustStore(state *State) {
@@ -1045,6 +1085,16 @@ func main() {
 	if info, err := os.Stdin.Stat(); err == nil {
 		state.interactiveInput = info.Mode()&os.ModeCharDevice != 0
 	}
+	if *selectedCloth != "" {
+		if err := validateSelectedCloth(*selectedCloth); err != nil {
+			fmt.Fprintln(os.Stderr, "Error:", err)
+			os.Exit(1)
+		}
+		if warning := selectedClothWarning(*selectedCloth); warning != "" {
+			fmt.Fprintln(os.Stderr, warning)
+		}
+	}
+
 	state.configPath = *selectedCloth
 	state.ResetConfig()
 	InitializeTrustStore(state)

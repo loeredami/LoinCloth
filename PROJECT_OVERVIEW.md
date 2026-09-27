@@ -16,7 +16,7 @@ The project currently has two related goals:
 The active development line is:
 
 ```text
-v1.4.2-windows-default-cloth-acl
+v1.4.2-security-status
 ```
 
 The current security branch is based on the following progression:
@@ -31,7 +31,8 @@ main
                     └── v1.4.2-trust-launch-enforcement
                         └── v1.4.2-trust-confirmation
                             └── v1.4.2-default-cloth-hardening
-                                └── v1.4.2-windows-default-cloth-acl (active)
+                                └── v1.4.2-windows-default-cloth-acl
+                                    └── v1.4.2-security-status (active)
 ```
 
 Branches are intentionally used for potentially breaking security changes. After validation, feature branches are merged into `v1.4.2`, pushed, and then used as the base for the next isolated experiment.
@@ -151,6 +152,8 @@ The following foundations exist:
 - Versioned persistent trust-store prototype with validation and atomic writes.
 - Direct-interactive trust management commands: `!trust`, `!trust-list`, and `!untrust`.
 - `!trust` requires a separate interactive confirmation before persisting a rule; declining does not modify the store.
+- `!security-status` reports the active configuration path and source, configuration trust, executable trust-store state, and privilege state.
+- Explicitly selected `.cloth` files are validated as readable regular files and produce a development-mode warning when outside the protected default location.
 - Launch-time checks for standalone external commands and external stages in pipelines.
 - Interactive approval choices: Run Once, Add command to allow list, or Do not run. Prompts are written to stderr so they do not become redirected command output.
 - Unknown non-interactive external commands are denied before launch.
@@ -162,7 +165,6 @@ The following foundations exist:
 
 The following are not complete:
 
-- Explicit confirmation when using `!trust` to add a persistent rule.
 - Native-command policy and comprehensive review/testing for every mixed/internal pipeline path.
 - Native Windows verification of the default-cloth ACL acceptance/rejection cases; Wine’s ACL behavior is not authoritative.
 - `!toggle-security` and `!wear-ns`.

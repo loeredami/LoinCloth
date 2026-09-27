@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -97,7 +99,40 @@ func GetEnvValue(state *State, key string) ungo.Optional[[]string] {
 	return result
 }
 
+func writeSecurityStatus(state *State, w io.Writer) error {
+	path := state.configPath
+	if path == "" {
+		uDir, err := os.UserConfigDir()
+		if err != nil {
+			return fmt.Errorf("identify default configuration directory: %w", err)
+		}
+		path = filepath.Join(uDir, ".loin", "default.cloth")
+	}
+
+	fmt.Fprintf(w, "Configuration path: %s\n", path)
+	fmt.Fprintf(w, "Configuration source: %s\n", state.configSource)
+	trusted := "No"
+	if state.configSource == SourceDefaultCloth {
+		trusted = "Yes"
+	}
+	fmt.Fprintf(w, "Configuration trusted: %s\n", trusted)
+	if state.trustStorePath == "" {
+		fmt.Fprintln(w, "Executable trust store: unavailable")
+	} else {
+		fmt.Fprintf(w, "Executable trust store: %s (%d entries)\n", state.trustStorePath, len(state.trustStore.Entries()))
+	}
+	fmt.Fprintln(w, "Privilege state: normal (explicit elevation is not active)")
+	return nil
+}
+
 func init() {
+	RegisterCmd("!security-status", func(state *State, command []string) ungo.Optional[error] {
+		if err := writeSecurityStatus(state, os.Stdout); err != nil {
+			return ungo.Some(err)
+		}
+		return ungo.None[error]()
+	})
+
 	RegisterCmd("!trust", func(state *State, command []string) ungo.Optional[error] {
 		if state.commandSource != SourceInteractive || !state.interactiveInput {
 			return ungo.Some(fmt.Errorf("!trust requires direct interactive input"))

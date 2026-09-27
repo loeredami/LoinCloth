@@ -42,6 +42,9 @@ type State struct {
 	// keeps the normal per-user default.cloth behavior.
 	configPath string
 
+	// configSource is the source type of the loaded configuration.
+	configSource CommandSource
+
 	// commandSource identifies where the currently executing command came from.
 	// It is the foundation for trust and gray-list decisions.
 	commandSource CommandSource

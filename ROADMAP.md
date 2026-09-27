@@ -124,10 +124,10 @@ The trust list controls whether an external executable may run without explicit 
   - [x] Fail closed to gray-listing when ACL inspection fails or an unapproved SID (including Everyone) is granted access.
   - [x] Add Windows ACE-policy and SID-matching tests and run them under Wine.
   - [ ] Verify the accepted/rejected ACL cases on native Windows; Wine ACL behavior is not authoritative.
-- [ ] Display the active configuration path and security source in startup/status output.
-- [ ] Reject missing, unreadable, or directory-valued configuration paths before starting the shell.
+- [x] Display the active configuration path and security source in startup/status output.
+- [x] Reject missing, unreadable, or directory-valued configuration paths before starting the shell.
 - [x] Accept `--cloth` only from process arguments, never from a configuration file.
-- [ ] Add a development-mode warning when the selected file is outside the protected default configuration location.
+- [x] Add a development-mode warning when the selected file is outside the protected default configuration location.
 - [ ] Add tests for missing paths, unreadable files, directories, source context, and trust inheritance.
 - [ ] Add platform-specific trust bootstrap entries to `default.cloth` only for native commands required by the active operating system.
 - [ ] Define how platform-specific entries are selected without executing the other platform's commands.
@@ -308,5 +308,3 @@ The trust list controls whether an external executable may run without explicit 
 - [ ] Ordinary command behavior is unchanged.
 - [ ] Security review findings are resolved or explicitly documented.
 - [ ] Decide whether the experiment should become the `v1.4.2` release design.
-
-
