@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -85,7 +84,7 @@ func TestTrustStoreRejectsWorkspaceCommandRules(t *testing.T) {
 }
 
 func TestTrustStorePersistsAndLoads(t *testing.T) {
-	path := t.TempDir() + "/trust.json"
+	path := trustStoreTestPath(t)
 	original := TrustStore{}
 	original.Add(TrustEntry{Rule: "/usr/bin/example", Kind: TrustExactPath, Source: SourceInteractive})
 	original.Add(TrustEntry{Rule: "python*", Kind: TrustGlob, Source: SourceDefaultCloth})
@@ -103,7 +102,7 @@ func TestTrustStorePersistsAndLoads(t *testing.T) {
 }
 
 func TestTrustStoreLoadRejectsWorkspaceCommandRule(t *testing.T) {
-	path := t.TempDir() + "/trust.json"
+	path := trustStoreTestPath(t)
 	data := []byte(`{"version":1,"entries":[{"Rule":"!wear","Kind":1,"Source":0}]}`)
 	if err := os.WriteFile(path, data, 0600); err != nil {
 		t.Fatalf("write invalid trust store: %v", err)
@@ -114,7 +113,7 @@ func TestTrustStoreLoadRejectsWorkspaceCommandRule(t *testing.T) {
 }
 
 func TestTrustStoreSaveRejectsWorkspaceCommandRule(t *testing.T) {
-	path := t.TempDir() + "/trust.json"
+	path := trustStoreTestPath(t)
 	store := TrustStore{entries: []TrustEntry{
 		{Rule: "!wear", Kind: TrustBasename, Source: SourceInteractive},
 	}}
@@ -127,7 +126,7 @@ func TestTrustStoreSaveRejectsWorkspaceCommandRule(t *testing.T) {
 }
 
 func TestTrustStoreRejectsInvalidData(t *testing.T) {
-	path := t.TempDir() + "/trust.json"
+	path := trustStoreTestPath(t)
 	if err := os.WriteFile(path, []byte(`{"version":99,"entries":[]}`), 0600); err != nil {
 		t.Fatalf("write invalid trust store: %v", err)
 	}
@@ -137,7 +136,7 @@ func TestTrustStoreRejectsInvalidData(t *testing.T) {
 }
 
 func TestCorruptTrustStoreFailsClosedAndManagementDoesNotOverwrite(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "trust.json")
+	path := trustStoreTestPath(t)
 	corrupt := []byte(`{"version":99,"entries":[]}`)
 	if err := os.WriteFile(path, corrupt, 0600); err != nil {
 		t.Fatalf("write corrupt store: %v", err)
@@ -179,7 +178,7 @@ func TestCorruptTrustStoreFailsClosedAndManagementDoesNotOverwrite(t *testing.T)
 }
 
 func TestTrustStoreChangesAfterLoadFailClosed(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "trust.json")
+	path := trustStoreTestPath(t)
 	original := TrustStore{}
 	original.Add(TrustEntry{Rule: "/usr/bin/original", Kind: TrustExactPath, Source: SourceInteractive})
 	if err := SaveTrustStore(path, original); err != nil {
@@ -212,7 +211,7 @@ func TestTrustStoreChangesAfterLoadFailClosed(t *testing.T) {
 }
 
 func TestChangedTrustStoreCannotAuthorizeCommand(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "trust.json")
+	path := trustStoreTestPath(t)
 	store := TrustStore{}
 	store.Add(TrustEntry{Rule: "/usr/bin/example", Kind: TrustExactPath, Source: SourceInteractive})
 	if err := SaveTrustStore(path, store); err != nil {
@@ -231,7 +230,7 @@ func TestChangedTrustStoreCannotAuthorizeCommand(t *testing.T) {
 }
 
 func TestTrustStoreDeletionAfterLoadFailsClosed(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "trust.json")
+	path := trustStoreTestPath(t)
 	store := TrustStore{}
 	store.Add(TrustEntry{Rule: "/usr/bin/example", Kind: TrustExactPath, Source: SourceInteractive})
 	if err := SaveTrustStore(path, store); err != nil {
@@ -253,7 +252,7 @@ func TestTrustStoreDeletionAfterLoadFailsClosed(t *testing.T) {
 }
 
 func TestTrustStoreRecoveryRequiresConfirmationAndReloadsValidFile(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "trust.json")
+	path := trustStoreTestPath(t)
 	initial := TrustStore{}
 	initial.Add(TrustEntry{Rule: "/usr/bin/original", Kind: TrustExactPath, Source: SourceInteractive})
 	if err := SaveTrustStore(path, initial); err != nil {
@@ -299,7 +298,7 @@ func TestTrustStoreRecoveryRequiresConfirmationAndReloadsValidFile(t *testing.T)
 }
 
 func TestTrustStoreRecoveryKeepsInvalidFileFailClosed(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "trust.json")
+	path := trustStoreTestPath(t)
 	initial := TrustStore{}
 	initial.Add(TrustEntry{Rule: "/usr/bin/original", Kind: TrustExactPath, Source: SourceInteractive})
 	if err := SaveTrustStore(path, initial); err != nil {
@@ -331,7 +330,7 @@ func TestTrustStoreRecoveryKeepsInvalidFileFailClosed(t *testing.T) {
 
 func TestTrustMutationDoesNotOverwriteChangedStore(t *testing.T) {
 	withPromptInput(t, "y")
-	path := filepath.Join(t.TempDir(), "trust.json")
+	path := trustStoreTestPath(t)
 	original := TrustStore{}
 	original.Add(TrustEntry{Rule: "/usr/bin/original", Kind: TrustExactPath, Source: SourceInteractive})
 	if err := SaveTrustStore(path, original); err != nil {
@@ -364,7 +363,7 @@ func TestTrustMutationDoesNotOverwriteChangedStore(t *testing.T) {
 
 func TestRejectedTrustStoreBlocksPersistentPromptChoice(t *testing.T) {
 	withPromptInput(t, "2")
-	path := filepath.Join(t.TempDir(), "trust.json")
+	path := trustStoreTestPath(t)
 	state := &State{
 		trustStorePath:  path,
 		trustStoreError: fmt.Errorf("unsupported trust store version"),

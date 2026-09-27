@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -45,7 +44,7 @@ func TestTrustPromptRunOnceDoesNotPersist(t *testing.T) {
 
 func TestTrustPromptAddToAllowListPersistsExactPath(t *testing.T) {
 	withPromptInput(t, "2\nyes")
-	state := &State{trustStorePath: filepath.Join(t.TempDir(), "trust.json")}
+	state := &State{trustStorePath: trustStoreTestPath(t)}
 	var output bytes.Buffer
 	writer := bufio.NewWriter(&output)
 	if !promptExecutableTrust(state, "/usr/bin/example", writer) {
@@ -72,7 +71,7 @@ func TestTrustPromptAddToAllowListPersistsExactPath(t *testing.T) {
 
 func TestTrustPromptDeclinedPersistenceDoesNotTrustOrPersist(t *testing.T) {
 	withPromptInput(t, "2\nno")
-	path := filepath.Join(t.TempDir(), "trust.json")
+	path := trustStoreTestPath(t)
 	state := &State{trustStorePath: path}
 	var output bytes.Buffer
 	writer := bufio.NewWriter(&output)
@@ -96,7 +95,7 @@ func TestDeclinedTrustPersistenceDoesNotLaunchCommand(t *testing.T) {
 	command, state := testCommandHelper(t, "first")
 	state.interactiveInput = true
 	state.trustStore = TrustStore{}
-	state.trustStorePath = filepath.Join(t.TempDir(), "trust.json")
+	state.trustStorePath = trustStoreTestPath(t)
 
 	var output bytes.Buffer
 	RunStringTo(state, command, &output)
@@ -119,7 +118,7 @@ func TestTrustCommandRequiresExplicitConfirmation(t *testing.T) {
 	state := &State{
 		commandSource:    SourceInteractive,
 		interactiveInput: true,
-		trustStorePath:   filepath.Join(t.TempDir(), "trust.json"),
+		trustStorePath:   trustStoreTestPath(t),
 	}
 	if result := HandleStateCommands(state, []string{"!trust", "/usr/bin/example"}); result.HasValue() {
 		t.Fatalf("declining confirmation returned error: %v", result.Value())
@@ -137,7 +136,7 @@ func TestTrustCommandPersistsOnlyAfterConfirmation(t *testing.T) {
 	state := &State{
 		commandSource:    SourceInteractive,
 		interactiveInput: true,
-		trustStorePath:   filepath.Join(t.TempDir(), "trust.json"),
+		trustStorePath:   trustStoreTestPath(t),
 	}
 	if result := HandleStateCommands(state, []string{"!trust", "/usr/bin/example"}); result.HasValue() {
 		t.Fatalf("confirmed trust command returned error: %v", result.Value())
@@ -158,7 +157,7 @@ func TestTrustCommandRejectsWorkspaceCommandTargets(t *testing.T) {
 	state := &State{
 		commandSource:    SourceInteractive,
 		interactiveInput: true,
-		trustStorePath:   filepath.Join(t.TempDir(), "trust.json"),
+		trustStorePath:   trustStoreTestPath(t),
 	}
 	for _, target := range []string{"!wear", "!wear*"} {
 		result := HandleStateCommands(state, []string{"!trust", target})

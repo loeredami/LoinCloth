@@ -16,7 +16,7 @@ The project currently has two related goals:
 The active development line is:
 
 ```text
-v1.4.2-trust-store-recovery
+v1.4.2-trust-store-permissions
 ```
 
 The current security branch is based on the following progression:
@@ -43,7 +43,8 @@ main
                                                                     └── v1.4.2-reject-workspace-trust-rules
                                                                         └── v1.4.2-trust-store-fail-closed
                                                                             └── v1.4.2-trust-store-change-detection
-                                                                                └── v1.4.2-trust-store-recovery (active)
+                                                                                └── v1.4.2-trust-store-recovery
+                                                                                    └── v1.4.2-trust-store-permissions (active)
 ```
 
 Branches are intentionally used for potentially breaking security changes. After validation, feature branches are merged into `v1.4.2`, pushed, and then used as the base for the next isolated experiment.
@@ -172,6 +173,7 @@ The following foundations exist:
 - Versioned persistent trust-store prototype with validation and atomic writes.
 - If the trust store fails validation at startup, its entries are discarded and trust inspection, changes, and persistent approvals are blocked; `!security-status` reports the unavailable store rather than presenting it as empty.
 - Trust-store content changes or deletion after loading invalidate in-memory entries; `!trust-reload` provides explicit, confirmed recovery after the store has been reviewed or repaired.
+- On Unix-like systems, the trust store must be owned by the current user, regular, non-symlink, and private; its directory is tightened to `0700` and file to `0600`. Windows loads validate owner and DACL protection before reading.
 - Trust-store adds, saves, loads, and matching reject workspace command rules beginning with `!`.
 - Direct-interactive trust management commands: `!trust`, `!trust-list`, and `!untrust`.
 - `!trust` requires a separate interactive confirmation before persisting a rule; declining does not modify the store.

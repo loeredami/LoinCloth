@@ -145,7 +145,7 @@ func LoadTrustStore(path string) (TrustStore, error) {
 }
 
 func loadTrustStoreSnapshot(path string) (TrustStore, [32]byte, bool, error) {
-	data, err := os.ReadFile(path)
+	data, err := readTrustStoreFile(path)
 	if os.IsNotExist(err) {
 		return TrustStore{}, [32]byte{}, false, nil
 	}
@@ -180,7 +180,7 @@ func parseTrustStore(data []byte) (TrustStore, error) {
 }
 
 func trustStoreSnapshot(path string) ([32]byte, bool, error) {
-	data, err := os.ReadFile(path)
+	data, err := readTrustStoreFile(path)
 	if os.IsNotExist(err) {
 		return [32]byte{}, false, nil
 	}
@@ -206,7 +206,10 @@ func SaveTrustStore(path string, store TrustStore) error {
 	}
 	data = append(data, '\n')
 
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+	if err := prepareTrustStoreDirectory(filepath.Dir(path)); err != nil {
+		return err
+	}
+	if err := validateTrustStoreReplacement(path); err != nil {
 		return err
 	}
 	temporary, err := os.CreateTemp(filepath.Dir(path), ".trust-store-*.tmp")
@@ -219,6 +222,10 @@ func SaveTrustStore(path string, store TrustStore) error {
 		temporary.Close()
 		return err
 	}
+	if err := validateTrustStoreReplacement(temporary.Name()); err != nil {
+		temporary.Close()
+		return err
+	}
 	if _, err := temporary.Write(data); err != nil {
 		temporary.Close()
 		return err
@@ -228,6 +235,9 @@ func SaveTrustStore(path string, store TrustStore) error {
 		return err
 	}
 	if err := temporary.Close(); err != nil {
+		return err
+	}
+	if err := validateTrustStoreReplacement(path); err != nil {
 		return err
 	}
 	return os.Rename(temporaryName, path)
