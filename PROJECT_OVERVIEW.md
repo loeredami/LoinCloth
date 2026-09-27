@@ -204,9 +204,7 @@ The following are not complete:
 - Native-command policy and comprehensive review/testing for every mixed/internal pipeline path.
 - Native Windows verification of the default-cloth ACL acceptance/rejection cases; Wine’s ACL behavior is not authoritative.
 - `!toggle-security` and `!wear-ns`.
-- `!access-administrator` and `!exit-administrator`.
-- Unix `sudo` delegation.
-- Windows UAC `runas` handling.
+- Native Windows console/UAC behavior for one-command elevation and persistent administrator sessions.
 - Protected `default.cloth` process/file-access monitoring.
 
 Do not describe the current prototype as a complete security boundary. Native-command policy, source-context edge cases, native Windows ACL validation, and privilege elevation are still incomplete.

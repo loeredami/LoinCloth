@@ -632,19 +632,27 @@ func runBufferedPipeline(state *State, commands []PipelineCommand, output io.Wri
 				fmt.Fprintln(&stageOutput, name)
 			}
 		} else {
-			path, err := exec.LookPath(command.args[0])
+			path, err := resolveCommandExecutable(command.args)
 			if err != nil {
-				fmt.Fprintf(output, "%sCommand not found: %s%s\n", state.GetColor(state.config.ErrorCol), command.args[0], state.Reset())
-				return 127
+				return commandResolutionFailure(command.args, output, state)
 			}
-			process := exec.Command(path, command.args[1:]...)
-			process.Stdin = input
-			process.Stdout = &stageOutput
-			process.Stderr = os.Stderr
-			process.Env = commandEnvironment(state)
-			if err := process.Run(); err != nil {
-				fmt.Fprintf(output, "%s%v%s\n", state.GetColor(state.config.ErrorCol), err, state.Reset())
-				stageStatus = processExitStatus(err)
+			if command.args[0] == "sudo" {
+				target, _ := sudoTarget(command.args)
+				target[0] = path
+				if err := runSudoCommand(target, input, &stageOutput, os.Stderr); err != nil {
+					fmt.Fprintf(output, "%s%v%s\n", state.GetColor(state.config.ErrorCol), err, state.Reset())
+					stageStatus = processExitStatus(err)
+				}
+			} else {
+				process := exec.Command(path, command.args[1:]...)
+				process.Stdin = input
+				process.Stdout = &stageOutput
+				process.Stderr = os.Stderr
+				process.Env = commandEnvironment(state)
+				if err := process.Run(); err != nil {
+					fmt.Fprintf(output, "%s%v%s\n", state.GetColor(state.config.ErrorCol), err, state.Reset())
+					stageStatus = processExitStatus(err)
+				}
 			}
 		}
 		if stageStatus != 0 {
@@ -688,7 +696,7 @@ func processExitStatus(err error) int {
 	if err == nil {
 		return 0
 	}
-	var exitErr *exec.ExitError
+	var exitErr interface{ ExitCode() int }
 	if errors.As(err, &exitErr) && exitErr.ExitCode() >= 0 {
 		return exitErr.ExitCode()
 	}
@@ -699,13 +707,25 @@ func runPipeline(state *State, commands []PipelineCommand, output io.Writer) int
 	if len(commands) == 0 {
 		return 0
 	}
+	if !supportsElevatedPipelines {
+		for _, command := range commands {
+			if len(command.args) > 0 && command.args[0] == "sudo" &&
+				(len(commands) > 1 || command.stdinPath != "" || command.stdoutPath != "") {
+				fmt.Fprintf(output, "%sWindows elevated commands currently require a standalone command without redirection%s\n", state.GetColor(state.config.ErrorCol), state.Reset())
+				return 2
+			}
+		}
+	}
 	if len(commands) == 1 {
 		command := commands[0]
 		if !isPipelineInternal(command.args[0]) {
-			path, err := exec.LookPath(command.args[0])
+			if command.args[0] == "sudo" && !explicitPrivilegeRequestAllowed(state) {
+				fmt.Fprintf(output, "%ssudo requires direct interactive input%s\n", state.GetColor(state.config.ErrorCol), state.Reset())
+				return 126
+			}
+			path, err := resolveCommandExecutable(command.args)
 			if err != nil {
-				fmt.Fprintf(output, "%sCommand not found: %s%s\n", state.GetColor(state.config.ErrorCol), command.args[0], state.Reset())
-				return 127
+				return commandResolutionFailure(command.args, output, state)
 			}
 			if !authorizeExecutable(state, path, output) {
 				return 126
@@ -751,16 +771,19 @@ func runPipeline(state *State, commands []PipelineCommand, output io.Writer) int
 			return 2
 		}
 		if !isPipelineInternal(command.args[0]) {
-			path, err := exec.LookPath(command.args[0])
+			if command.args[0] == "sudo" && !explicitPrivilegeRequestAllowed(state) {
+				fmt.Fprintf(output, "%ssudo requires direct interactive input%s\n", state.GetColor(state.config.ErrorCol), state.Reset())
+				return 126
+			}
+			path, err := resolveCommandExecutable(command.args)
 			if err != nil {
-				fmt.Fprintf(output, "%sCommand not found: %s%s\n", state.GetColor(state.config.ErrorCol), command.args[0], state.Reset())
-				return 127
+				return commandResolutionFailure(command.args, output, state)
 			}
 			if !authorizeExecutable(state, path, output) {
 				return 126
 			}
 		}
-		if isPipelineInternal(command.args[0]) ||
+		if isPipelineInternal(command.args[0]) || command.args[0] == "sudo" ||
 			(i < len(commands)-1 && command.stdoutPath != "") || (i > 0 && command.stdinPath != "") {
 			return runBufferedPipeline(state, commands, output)
 		}
@@ -786,10 +809,9 @@ func runPipeline(state *State, commands []PipelineCommand, output io.Writer) int
 		}
 	}()
 	for i, command := range commands {
-		path, err := exec.LookPath(command.args[0])
+		path, err := resolveCommandExecutable(command.args)
 		if err != nil {
-			fmt.Fprintf(output, "%sCommand not found: %s%s\n", state.GetColor(state.config.ErrorCol), command.args[0], state.Reset())
-			return 127
+			return commandResolutionFailure(command.args, output, state)
 		}
 		execs[i] = exec.Command(path, command.args[1:]...)
 		execs[i].Env = commandEnvironment(state)
@@ -914,6 +936,12 @@ func RunStringToSource(state *State, input string, output io.Writer, source Comm
 	if len(commands) == 0 {
 		return
 	}
+	if handled, status := handleAdminModeCommand(state, commands, source, output); handled {
+		if state != nil {
+			state.lastExitCode = status
+		}
+		return
+	}
 	status := runPipeline(state, commands, output)
 	if state != nil {
 		state.lastExitCode = status
@@ -938,6 +966,28 @@ func runWithStdinPolicy(state *State, cmdArgs []string, w io.Writer, stdin io.Re
 	}
 
 	if !strings.HasPrefix(cmdArgs[0], "!") {
+		if cmdArgs[0] == "sudo" {
+			target, err := sudoTarget(cmdArgs)
+			if err != nil {
+				fmt.Fprintf(w, "%s%v%s\n", state.GetColor(state.config.ErrorCol), err, state.Reset())
+				return 2
+			}
+			targetPath, err := exec.LookPath(target[0])
+			if err != nil {
+				fmt.Fprintf(w, "%sCommand not found: %s%s\n", state.GetColor(state.config.ErrorCol), target[0], state.Reset())
+				return 127
+			}
+			if checkTrust && !authorizeExecutable(state, targetPath, w) {
+				return 126
+			}
+			target[0] = targetPath
+			err = runSudoCommand(target, stdin, w, os.Stderr)
+			if err != nil {
+				fmt.Fprintf(w, "%s%v%s\n", state.GetColor(state.config.ErrorCol), err, state.Reset())
+			}
+			return processExitStatus(err)
+		}
+
 		if cmdArgs[0] == "cd" {
 			if len(cmdArgs) > 1 {
 				target := UnformatPathIfInHome(cmdArgs[1])
@@ -1019,6 +1069,12 @@ func runWithStdinPolicy(state *State, cmdArgs []string, w io.Writer, stdin io.Re
 }
 
 func ReadConfiguration(state *State) {
+	previousLoadingConfig := state.loadingConfig
+	state.loadingConfig = true
+	defer func() {
+		state.loadingConfig = previousLoadingConfig
+	}()
+
 	configFilePath := state.configPath
 	isDefaultConfig := configFilePath == ""
 	if isDefaultConfig {
@@ -1148,6 +1204,7 @@ func runNonInteractive(state *State, input io.Reader) error {
 
 func main() {
 	selectedCloth := flag.String("cloth", "", "load a specific .cloth configuration file")
+	adminSession := flag.Bool(adminSessionFlag, false, "")
 	flag.Parse()
 
 	InitTerminal()
@@ -1160,6 +1217,13 @@ func main() {
 		workspaces:    ungo.NewLinkedList[*Workspace](),
 		config:        DefaultConfiguration(),
 	}
+	if *adminSession {
+		if !isAdministrator() {
+			fmt.Fprintln(os.Stderr, "Error: administrator session started without an elevated process token")
+			os.Exit(1)
+		}
+		state.administratorMode = true
+	}
 
 	start_dir, _ := os.Getwd()
 	state.workspaces.Add(&Workspace{
@@ -1170,6 +1234,10 @@ func main() {
 
 	if info, err := os.Stdin.Stat(); err == nil {
 		state.interactiveInput = info.Mode()&os.ModeCharDevice != 0
+	}
+	if *adminSession && !state.interactiveInput {
+		fmt.Fprintln(os.Stderr, "Error: administrator mode requires an interactive terminal")
+		os.Exit(1)
 	}
 	if *selectedCloth != "" {
 		if err := validateSelectedCloth(*selectedCloth); err != nil {
@@ -1206,5 +1274,8 @@ func main() {
 		start := time.Now()
 		RunString(state, input)
 		duration = ungo.Some(time.Since(start))
+		if state.exitAdminMode {
+			break
+		}
 	}
 }

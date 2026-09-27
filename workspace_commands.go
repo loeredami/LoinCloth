@@ -122,6 +122,14 @@ func writeSecurityStatus(state *State, w io.Writer) error {
 }
 
 func init() {
+	RegisterCmd("!enter-admin", func(state *State, command []string) ungo.Optional[error] {
+		return ungo.Some(fmt.Errorf("!enter-admin requires a direct interactive command"))
+	})
+
+	RegisterCmd("!exit-admin", func(state *State, command []string) ungo.Optional[error] {
+		return ungo.Some(fmt.Errorf("!exit-admin requires a direct interactive command"))
+	})
+
 	RegisterCmd("!last-status", func(state *State, command []string) ungo.Optional[error] {
 		writeLastStatus(state, os.Stdout)
 		return ungo.None[error]()
@@ -458,6 +466,9 @@ func init() {
 			state.config.LSNormalCol = color.String()
 			return ungo.None[error]()
 		case "sudo-prompt":
+			if (state.administratorMode || isAdministrator()) && !state.loadingConfig {
+				return ungo.Some(fmt.Errorf("the administrator prompt cannot be changed while administrator mode is active"))
+			}
 			state.config.SudoPromptCol = color.String()
 			return ungo.None[error]()
 		case "prompt":
@@ -525,6 +536,9 @@ func init() {
 
 		switch command[1] {
 		case "sudo-prompt":
+			if (state.administratorMode || isAdministrator()) && !state.loadingConfig {
+				return ungo.Some(fmt.Errorf("the administrator prompt cannot be changed while administrator mode is active"))
+			}
 			state.config.SudoPrompt = command[2]
 			return ungo.None[error]()
 		case "prompt":

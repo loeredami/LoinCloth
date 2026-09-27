@@ -357,7 +357,7 @@ func readRawInputFrom(state *State, promptStr string, input io.Reader) string {
 
 func renderPromptInfo(state *State, time_taken ungo.Optional[time.Duration]) string {
 	cur_dir, _ := os.Getwd()
-	admin := os.Getuid() == 0
+	admin := state.administratorMode || isAdministrator()
 	in_sign := ungo.If(admin, fmt.Sprintf("%s%s%s", state.GetColor(state.config.SudoPromptCol), state.config.SudoPrompt, state.Reset()), fmt.Sprintf("%s%s%s", state.GetColor(state.config.PromptCol), state.config.Prompt, state.Reset()))
 
 	state.workspaces.ForEach(func(idx int, ws *Workspace) {
