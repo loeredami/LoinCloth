@@ -27,6 +27,7 @@ Security changes should not begin until the existing parser and interactive-inpu
 
 - Primary criterion: does an `ungo` API make a real LoinCloth task simpler, clearer, or easier to compose? Prefer useful integrations and ergonomic tests; use benchmarks to resolve a concrete trade-off, not to maximize library usage or chase micro-optimizations.
 - [x] Express lexer processing as a named `ungo.PipeSequence`, making the ordered lexing stages visible and individually maintainable instead of rebuilding an inline list of anonymous functions for each input character.
+- [x] Runtime-verify the lexer pipeline with a quoted workspace label: `!label` and `!switch "lexer pipeline test"` parsed correctly, switching/closing worked, and `!new w` kept the original workspace active.
 - [x] Use `os.LookupEnv` and a single scope traversal for variable lookup, retaining `ungo.SmallMap` scope overrides; measure the change with a 64-scope benchmark.
 - [x] Benchmark child-environment assembly with `ungo.SmallMap` against legacy and built-in-map implementations, and verify environment equivalence.
 - [x] Benchmark `ungo.SmallMap` command-registry lookup/construction against Go maps; test collision, growth, overwrite, and deletion behavior. Reduce the constructor capacity hint from 256 to 64 based on the measured allocation/build trade-off.
