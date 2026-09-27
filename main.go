@@ -1036,12 +1036,10 @@ func ReadConfiguration(state *State) {
 		}
 
 		configFilePath = filepath.Join(path, "default.cloth")
-		f, err := os.OpenFile(configFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-		if err != nil {
+		if err := createDefaultClothIfMissing(configFilePath); err != nil {
 			fmt.Printf("Error ensuring configuration file exists: %v\n", err)
 			return
 		}
-		f.Close()
 	}
 
 	source := configurationCommandSource(isDefaultConfig, false)
@@ -1070,6 +1068,25 @@ func ReadConfiguration(state *State) {
 			RunStringFromSource(state, line, source)
 		}
 	}
+}
+
+func createDefaultClothIfMissing(path string) error {
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if os.IsExist(err) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("create default.cloth: %w", err)
+	}
+
+	content := strings.Join(generatedDefaultClothCommands(), "\n") + "\n"
+	_, writeErr := io.WriteString(file, content)
+	closeErr := file.Close()
+	if writeErr != nil || closeErr != nil {
+		removeErr := os.Remove(path)
+		return errors.Join(writeErr, closeErr, removeErr)
+	}
+	return nil
 }
 
 func validateSelectedCloth(path string) error {

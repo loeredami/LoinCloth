@@ -30,6 +30,8 @@ External-only pipelines run concurrently with operating-system pipes and use the
 
 Security enforcement and administrator elevation remain experimental and are not complete. Unknown external commands are denied for non-interactive input. Interactive unknown commands can be run once, denied, or trusted for the current Loin session after a separate confirmation. A validated, protected `default.cloth` may seed session trust with explicit `!trust` entries; those rules remain active only in that Loin process and are not saved to a separate trust file. Other `.cloth` files cannot add trust rules and require approval for their commands even when an executable is trusted. `!trust`, `!trust-list`, and `!untrust` manage current-session rules. Workspace commands beginning with `!` cannot be trusted as executables. Selecting a development config with `--cloth` does not grant the default configuration's trust exemption. LoinCloth does not automatically elevate ordinary commands. See [`ROADMAP.md`](ROADMAP.md) for remaining security work.
 
+When Loin creates a new per-user `default.cloth`, it adds session trust rules for a small OS-specific set of read-only informational commands. Unix defaults are `whoami`, `id`, `uname`, `uptime`, and `pwd`; Windows defaults are `whoami.exe`, `hostname.exe`, `tasklist.exe`, `systeminfo.exe`, and `where.exe`. These are basename rules loaded only from a validated, protected `default.cloth`; an existing file is never overwritten or augmented automatically.
+
 See [`SHELL_OPERATORS.md`](SHELL_OPERATORS.md) for interactive input and shell operator details.
 
 ### Development environment
