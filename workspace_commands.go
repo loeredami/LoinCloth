@@ -213,6 +213,7 @@ func init() {
 				path:   current.path,
 				scopes: ungo.NewLinkedList[*Scope](),
 			})
+			state.cur_workspace = state.workspaces.Size() - 1
 		case "s":
 			if len(command) < 3 {
 				return ungo.Some(fmt.Errorf("error creating scope: no name given"))

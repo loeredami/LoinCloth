@@ -84,7 +84,7 @@ Mac os is not supported however binaries will be released, and pull requests for
 »
 ```
 
-`!new w` creates a new space.
+`!new w` creates a new space and switches to it automatically.
 
 The `[*]` indicates to us the current workspace in which we are in, in our case we are at workspace with index 0.
 The `[H]` indicates a workspace that is open in the same folder as our current workspace.
@@ -93,20 +93,17 @@ The `~4.73µs` is the rough execution time the command took, including command p
 
 The `(main)` is our current git branch, this will not display if there is no branch detected **in the active workspace folder**. Also, yes I am commiting to main, fight me.
 
-Use `!switch <index>` to switch to our new workspace.
+Use `!switch <index>` to move between workspaces.
 
 ```sh
 ~/Projects/2026/March/LoinCloth (main) ~811.145µs
 » !new w
-[0] ~/Projects/2026/March/LoinCloth [*] (main) ~4.73µs
-[1] ~/Projects/2026/March/LoinCloth [H]
-» !switch 1
 [0] ~/Projects/2026/March/LoinCloth [H]
-[1] ~/Projects/2026/March/LoinCloth [*] (main) ~10.71µs
+[1] ~/Projects/2026/March/LoinCloth [*] (main) ~4.73µs
 »
 ```
 
-You can see, we are now in workspace `[1]`. 
+You can see, we are now in workspace `[1]`.
 We will now see the `[H]` disappear in index `[0]` once we change directories.
 
 ```sh
