@@ -25,6 +25,21 @@ func TestValidateSelectedCloth(t *testing.T) {
 		}
 	})
 
+	t.Run("unreadable file", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "unreadable.cloth")
+		if err := os.WriteFile(path, []byte(""), 0000); err != nil {
+			t.Fatal(err)
+		}
+		f, err := os.Open(path)
+		if err == nil {
+			_ = f.Close()
+			t.Skip("current user can open a file with no read permissions")
+		}
+		if err := validateSelectedCloth(path); err == nil || !strings.Contains(err.Error(), "unreadable") {
+			t.Fatalf("unreadable file error: %v", err)
+		}
+	})
+
 	t.Run("regular file", func(t *testing.T) {
 		path := filepath.Join(t.TempDir(), "development.cloth")
 		if err := os.WriteFile(path, []byte(""), 0600); err != nil {

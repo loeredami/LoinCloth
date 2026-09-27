@@ -97,7 +97,7 @@ The trust list controls whether an external executable may run without explicit 
 - [x] Require confirmation before adding a trust rule to the current session.
 - [x] Ensure commands loaded from non-default `.cloth` files cannot silently create trusted entries.
 - [ ] Define gray-list inspection, approval, revocation, and audit output.
-- [ ] Propagate command source through nested `!wear` loads so commands retain their original file context.
+- [x] Propagate command source through nested `!wear` loads so commands retain their original file context.
 - [x] Treat commands loaded from non-default `.cloth` files as gray-listed rather than trusted.
 - [x] Prompt when a command is not trusted or is gray-listed:
   1. `Run Once` — execute this invocation without changing session trust.
@@ -150,7 +150,7 @@ The trust list controls whether an external executable may run without explicit 
 - [x] Reject missing, unreadable, or directory-valued configuration paths before starting the shell.
 - [x] Accept `--cloth` only from process arguments, never from a configuration file.
 - [x] Add a development-mode warning when the selected file is outside the protected default configuration location.
-- [ ] Add tests for missing paths, unreadable files, directories, source context, and trust inheritance.
+- [x] Add tests for missing paths, unreadable files, directories, source context, and trust inheritance.
 - [ ] Add platform-specific trust bootstrap entries to `default.cloth` only for native commands required by the active operating system.
 - [ ] Define how platform-specific entries are selected without executing the other platform's commands.
 - [ ] Validate that bootstrap entries refer to expected native executables and cannot introduce arbitrary trust entries.
