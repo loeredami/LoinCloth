@@ -44,7 +44,7 @@ func TestTrustPromptRunOnceDoesNotPersist(t *testing.T) {
 }
 
 func TestTrustPromptAddToAllowListPersistsExactPath(t *testing.T) {
-	withPromptInput(t, "2")
+	withPromptInput(t, "2\nyes")
 	state := &State{trustStorePath: filepath.Join(t.TempDir(), "trust.json")}
 	var output bytes.Buffer
 	writer := bufio.NewWriter(&output)
@@ -64,6 +64,53 @@ func TestTrustPromptAddToAllowListPersistsExactPath(t *testing.T) {
 	}
 	if !strings.Contains(output.String(), "Add command to allow list") {
 		t.Fatalf("prompt did not describe allow-list choice: %q", output.String())
+	}
+	if !strings.Contains(output.String(), "Persist trust rule") {
+		t.Fatalf("prompt did not confirm persistent trust: %q", output.String())
+	}
+}
+
+func TestTrustPromptDeclinedPersistenceDoesNotTrustOrPersist(t *testing.T) {
+	withPromptInput(t, "2\nno")
+	path := filepath.Join(t.TempDir(), "trust.json")
+	state := &State{trustStorePath: path}
+	var output bytes.Buffer
+	writer := bufio.NewWriter(&output)
+	if promptExecutableTrust(state, "/usr/bin/example", writer) {
+		t.Fatal("declined persistent trust should deny the invocation")
+	}
+	writer.Flush()
+	if len(state.trustStore.Entries()) != 0 {
+		t.Fatalf("declined persistence modified in-memory trust: %#v", state.trustStore.Entries())
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("declined persistence created trust store, stat error: %v", err)
+	}
+	if !strings.Contains(output.String(), "trust persistence declined") {
+		t.Fatalf("expected explicit decline message, got %q", output.String())
+	}
+}
+
+func TestDeclinedTrustPersistenceDoesNotLaunchCommand(t *testing.T) {
+	withPromptInput(t, "2\nno")
+	command, state := testCommandHelper(t, "first")
+	state.interactiveInput = true
+	state.trustStore = TrustStore{}
+	state.trustStorePath = filepath.Join(t.TempDir(), "trust.json")
+
+	var output bytes.Buffer
+	RunStringTo(state, command, &output)
+	if output.Len() != 0 {
+		t.Fatalf("command ran after declining persistence: %q", output.String())
+	}
+	if state.lastExitCode != 126 {
+		t.Fatalf("declined command status: got %d, want 126", state.lastExitCode)
+	}
+	if len(state.trustStore.Entries()) != 0 {
+		t.Fatalf("declined command changed in-memory trust: %#v", state.trustStore.Entries())
+	}
+	if _, err := os.Stat(state.trustStorePath); !os.IsNotExist(err) {
+		t.Fatalf("declined command created trust store, stat error: %v", err)
 	}
 }
 

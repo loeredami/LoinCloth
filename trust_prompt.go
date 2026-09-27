@@ -51,6 +51,17 @@ func promptExecutableTrust(state *State, executablePath string, output *bufio.Wr
 		return true
 	case "2":
 		kind, rule := ParseTrustRule(executablePath)
+		fmt.Fprintf(output, "Persist trust rule %q? [y/N]: ", rule)
+		output.Flush()
+
+		var confirmation string
+		if _, err := fmt.Fscanln(os.Stdin, &confirmation); err != nil ||
+			(!strings.EqualFold(strings.TrimSpace(confirmation), "y") && !strings.EqualFold(strings.TrimSpace(confirmation), "yes")) {
+			fmt.Fprintln(output, "trust persistence declined; command denied")
+			output.Flush()
+			return false
+		}
+
 		entry := TrustEntry{Rule: rule, Kind: kind, Source: SourceInteractive}
 		candidate := TrustStore{}
 		for _, existing := range state.trustStore.Entries() {

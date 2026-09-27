@@ -97,7 +97,7 @@ The trust list controls whether an external executable may run without explicit 
   - [ ] No implicit substring matching.
 - [x] Add an isolated trust-matching prototype with exact-path, basename, and explicit-glob rules.
 - [x] Add regression tests for cross-platform basename matching and duplicate trust entries.
-- [ ] Require confirmation before adding a trust entry, especially for wildcard or basename entries.
+- [x] Require explicit confirmation before adding a trust entry through the execution prompt; declining denies the command and leaves the trust store unchanged.
 - [ ] Provide commands to inspect and revoke trust entries.
 - [ ] Make `Add command to allow list` store the narrowest possible rule, preferring resolved path and executable identity over a broad basename or wildcard.
 - [ ] Define behavior when a trusted executable changes, including replacement, symlink, or Windows reparse-point scenarios.

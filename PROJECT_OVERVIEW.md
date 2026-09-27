@@ -16,7 +16,7 @@ The project currently has two related goals:
 The active development line is:
 
 ```text
-v1.4.2-pipeline-status
+v1.4.2-confirm-prompt-persistence
 ```
 
 The current security branch is based on the following progression:
@@ -35,7 +35,8 @@ main
                                     └── v1.4.2-security-status
                                         └── v1.4.2-parser-input-coverage
                                             └── v1.4.2-readme-current-behavior
-                                                └── v1.4.2-pipeline-status (active)
+                                                └── v1.4.2-pipeline-status
+                                                    └── v1.4.2-confirm-prompt-persistence (active)
 ```
 
 Branches are intentionally used for potentially breaking security changes. After validation, feature branches are merged into `v1.4.2`, pushed, and then used as the base for the next isolated experiment.
@@ -160,6 +161,7 @@ The following foundations exist:
 - Versioned persistent trust-store prototype with validation and atomic writes.
 - Direct-interactive trust management commands: `!trust`, `!trust-list`, and `!untrust`.
 - `!trust` requires a separate interactive confirmation before persisting a rule; declining does not modify the store.
+- Choosing “Add command to allow list” at an execution prompt requires a second explicit confirmation; declining prevents both persistence and that command's launch.
 - `!security-status` reports the active configuration path and source, configuration trust, executable trust-store state, and privilege state.
 - Explicitly selected `.cloth` files are validated as readable regular files and produce a development-mode warning when outside the protected default location.
 - Launch-time checks for standalone external commands and external stages in pipelines.
@@ -199,7 +201,7 @@ Do not describe the current prototype as a complete security boundary. Native-co
 
 - Create a dedicated branch for potentially breaking changes.
 - Run Go tests, native build, build matrix, and `run_dev.sh` smoke tests.
-- Commit only after the branch is validated.
+- Commit and push feature branches after automated validation; do not merge into `v1.4.2` until the user confirms the requested runtime checks passed.
 - Push every commit after creating it.
 - Merge validated feature branches into `v1.4.2` before starting the next major experiment.
 - Keep generated binaries and temporary test files out of commits.
