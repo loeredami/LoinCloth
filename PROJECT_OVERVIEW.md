@@ -16,7 +16,7 @@ The project currently has two related goals:
 The active development line is:
 
 ```text
-v1.4.2-security-status
+v1.4.2-parser-input-coverage
 ```
 
 The current security branch is based on the following progression:
@@ -32,7 +32,8 @@ main
                         └── v1.4.2-trust-confirmation
                             └── v1.4.2-default-cloth-hardening
                                 └── v1.4.2-windows-default-cloth-acl
-                                    └── v1.4.2-security-status (active)
+                                    └── v1.4.2-security-status
+                                        └── v1.4.2-parser-input-coverage (active)
 ```
 
 Branches are intentionally used for potentially breaking security changes. After validation, feature branches are merged into `v1.4.2`, pushed, and then used as the base for the next isolated experiment.
@@ -47,6 +48,7 @@ Branches are intentionally used for potentially breaking security changes. After
 | `terminal_windows.go` | Windows terminal setup and Windows built-ins. |
 | `command_lexer.go` | Lexer for identifiers, paths, strings, variables, braces, pipes, and redirection operators. |
 | `command_lexer_test.go` | Lexer and parser regression tests. |
+| `terminal_input_test.go` | Pasted batches, CRLF, continuation, cancellation, and command-source regression tests. |
 | `run_string_test.go` | Integration tests for command strings, pipelines, and redirections. |
 | `workspace.go` | `State`, workspaces, scopes, configuration path, and command-source state. |
 | `workspace_commands.go` | Workspace and `!` command implementations. |
@@ -146,6 +148,9 @@ Wine can catch basic startup and command-processing regressions; it does not val
 
 The following foundations exist:
 
+- Parser rejects empty command names, malformed/repeated redirections, and pipe stages without commands; blank input remains a no-op.
+- Pasted interactive batches preserve commands across the input buffer boundary; continuation, CRLF, and Ctrl+C cancellation are covered by tests.
+- Nested `!wear` command source is tracked and restored, including loads initiated by the default-configuration source.
 - Command-source tracking.
 - Repository-local development configuration selection with `--cloth`.
 - Trust-rule matching for exact paths, basenames, and explicit globs.

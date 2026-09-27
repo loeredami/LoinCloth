@@ -2,25 +2,26 @@
 
 ## v1.4.2 — Experimental 1
 
-This branch experiments with explicit cross-platform administrator execution. The goal is to make elevation visible, opt-in, and handled by the operating system rather than by LoinCloth.
+This roadmap tracks the v1.4.2 security experiment. Phase 0 closes deferred parser and interactive-input work before privilege-related implementation begins.
 
 ## Phase 0 — Complete deferred v1.4.1 work first
 
 Security changes should not begin until the existing parser and interactive-input behavior is better covered.
 
-- [ ] Complete broader lexer/parser coverage for all operator positions and edge cases.
+- [x] Complete broader lexer/parser coverage for all operator positions and edge cases.
   - [x] Operators adjacent to quoted and escaped tokens.
   - [x] Nested pipelines and redirections inside brace expressions.
   - [x] Malformed redirections, missing pipeline stages, and unmatched braces.
-  - [ ] Empty commands, repeated operators, and source-aware parsing for direct input, `default.cloth`, and nested `!wear` loads.
-- [ ] Add automated tests for pasted command batches, continuation lines, CRLF input, and cancellation during continuation input.
+  - [x] Empty commands, repeated operators, and source-aware parsing for direct input, `default.cloth`, and nested `!wear` loads.
+- [x] Add automated tests for pasted command batches, continuation lines, CRLF input, and cancellation during continuation input.
   - [x] Add `RunStringTo` integration coverage for pipelines, input redirection, and output redirection.
   - [x] Add non-interactive stdin handling for piped command input.
-- [ ] Decide whether internal pipeline stages should remain buffered or gain streaming execution.
-  - [ ] Document broken-pipe behavior and upstream cancellation.
-  - [ ] Define how mixed internal/external pipelines handle backpressure.
-  - [ ] Preserve output ordering and exit status behavior.
-- [ ] Establish a baseline regression run before implementing privilege changes.
+- [x] Decide whether internal pipeline stages should remain buffered or gain streaming execution: keep external-only pipelines streamed, and retain sequential buffering for pipelines involving internal stages until a separately tested mixed-stage streaming design is available.
+  - [x] Document broken-pipe behavior and upstream cancellation.
+  - [x] Define how mixed internal/external pipelines handle backpressure.
+  - [x] Document current output ordering and stage-failure reporting behavior.
+  - [ ] Define and test consistent shell-visible pipeline exit status and upstream failure behavior.
+- [x] Establish a baseline regression run before implementing privilege changes (`go test ./...` passed on the feature branch before implementation).
 
 ### Experiment policy
 

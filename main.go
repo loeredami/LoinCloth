@@ -393,12 +393,13 @@ func parsePipeline(state *State, tokens []Token) ([]PipelineCommand, error) {
 	current := []Token{}
 	var stdinPath, stdoutPath string
 	appendOut := false
+	stdinRedirected, stdoutRedirected := false, false
 	braceDepth := 0
 	afterPipe := false
 
 	flush := func() error {
 		args := processTokens(state, current)
-		if len(args) == 0 {
+		if len(args) == 0 || args[0] == "" {
 			return fmt.Errorf("expected a command")
 		}
 		commands = append(commands, PipelineCommand{
@@ -411,6 +412,7 @@ func parsePipeline(state *State, tokens []Token) ([]PipelineCommand, error) {
 		stdinPath = ""
 		stdoutPath = ""
 		appendOut = false
+		stdinRedirected, stdoutRedirected = false, false
 		return nil
 	}
 
@@ -448,20 +450,37 @@ func parsePipeline(state *State, tokens []Token) ([]PipelineCommand, error) {
 			if i+1 >= len(tokens) || tokens[i+1].Type == EndOfInput {
 				return nil, fmt.Errorf("redirection requires a path")
 			}
+			switch tokens[i+1].Type {
+			case Identifier, String, Number, Path, Varname:
+			default:
+				return nil, fmt.Errorf("redirection requires a path")
+			}
 			pathTokens := []Token{tokens[i+1], {Type: EndOfInput}}
 			paths := processTokens(state, pathTokens)
-			if len(paths) != 1 {
+			if len(paths) != 1 || paths[0] == "" {
 				return nil, fmt.Errorf("redirection requires one path")
 			}
 			switch token.Type {
 			case RedirectIn:
+				if stdinRedirected {
+					return nil, fmt.Errorf("input redirection may only be specified once per command")
+				}
 				stdinPath = paths[0]
+				stdinRedirected = true
 			case RedirectOut:
+				if stdoutRedirected {
+					return nil, fmt.Errorf("output redirection may only be specified once per command")
+				}
 				stdoutPath = paths[0]
 				appendOut = false
+				stdoutRedirected = true
 			case RedirectAppend:
+				if stdoutRedirected {
+					return nil, fmt.Errorf("output redirection may only be specified once per command")
+				}
 				stdoutPath = paths[0]
 				appendOut = true
+				stdoutRedirected = true
 			}
 			i++
 		default:
@@ -1033,7 +1052,13 @@ func InitializeTrustStore(state *State) {
 }
 
 func RunNonInteractive(state *State) {
-	scanner := bufio.NewScanner(os.Stdin)
+	if err := runNonInteractive(state, os.Stdin); err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading command input: %v\n", err)
+	}
+}
+
+func runNonInteractive(state *State, input io.Reader) error {
+	scanner := bufio.NewScanner(input)
 	var command strings.Builder
 
 	for scanner.Scan() {
@@ -1052,12 +1077,13 @@ func RunNonInteractive(state *State) {
 		input := strings.TrimSpace(command.String())
 		command.Reset()
 		if input == "exit" {
-			return
+			return nil
 		}
 		if input != "" {
 			RunStringFromSource(state, input, SourceNonInteractive)
 		}
 	}
+	return scanner.Err()
 }
 
 func main() {

@@ -34,7 +34,8 @@ type State struct {
 
 	// pendingInput stores complete commands that arrived after a newline in
 	// the same paste operation. They are consumed by the next prompt.
-	pendingInput string
+	pendingInput    string
+	skipNextInputLF bool
 
 	config Configuration
 

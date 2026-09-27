@@ -135,6 +135,38 @@ func TestParsePipelineRejectsRedirectionWithoutStage(t *testing.T) {
 	}
 }
 
+func TestParsePipelineEmptyAndRepeatedOperators(t *testing.T) {
+	t.Run("blank input is a no-op", func(t *testing.T) {
+		commands, err := parsePipeline(nil, lexTokens(" \t "))
+		if err != nil {
+			t.Fatalf("blank input returned error: %v", err)
+		}
+		if len(commands) != 0 {
+			t.Fatalf("blank input produced commands: %#v", commands)
+		}
+	})
+
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{name: "empty quoted command", input: `""`},
+		{name: "pipe at beginning", input: `| echo value`},
+		{name: "repeated pipes", input: `echo one || echo two`},
+		{name: "repeated input redirection", input: `echo value < first < second`},
+		{name: "repeated output redirection", input: `echo value > first >> second`},
+		{name: "operator used as redirection path", input: `echo value > | cat`},
+		{name: "empty quoted redirection path", input: `echo value > ""`},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if commands, err := parsePipeline(nil, lexTokens(test.input)); err == nil {
+				t.Fatalf("parsePipeline accepted %q: %#v", test.input, commands)
+			}
+		})
+	}
+}
+
 func TestParsePipelineExecutesNestedBraceExpression(t *testing.T) {
 	commands, err := parsePipeline(testTrustedState(t, "echo"), lexTokens(`echo { echo nested }`))
 	if err != nil {
