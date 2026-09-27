@@ -53,6 +53,7 @@ type State struct {
 	trustStore       TrustStore
 	trustStorePath   string
 	interactiveInput bool
+	lastExitCode     int
 }
 
 func (ws *Workspace) Encode() []byte {

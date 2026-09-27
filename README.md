@@ -26,7 +26,7 @@ Current features include:
 
 Blank input does nothing. Each pipeline stage requires a command, and a stage can have at most one input and one output redirection. Repeated or malformed operators and empty command names are rejected.
 
-External-only pipelines run concurrently with operating-system pipes. Pipelines with internal commands or buffered redirections run sequentially and hold intermediate output in memory. Pipeline failure reporting is not yet uniform: external-only pipelines report the final stage's failure, while buffered pipelines stop on a failed stage. See [`SHELL_OPERATORS.md`](SHELL_OPERATORS.md) for details.
+External-only pipelines run concurrently with operating-system pipes and use the final stage's exit code; upstream failures do not change the pipeline status. Pipelines with internal commands or buffered redirections run sequentially and stop at the first failed stage. Use `!last-status` to display the previous non-empty command's exit status. See [`SHELL_OPERATORS.md`](SHELL_OPERATORS.md) for details.
 
 Security enforcement and administrator elevation remain experimental and are not complete. Unknown external commands are denied for non-interactive input. Interactive unknown commands can prompt for per-command approval; commands loaded from non-default `.cloth` files require approval even when the executable is trusted. Selecting a development config with `--cloth` does not grant the default configuration's trust exemption. LoinCloth does not automatically elevate ordinary commands. See [`ROADMAP.md`](ROADMAP.md) for remaining security work.
 

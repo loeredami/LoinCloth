@@ -99,6 +99,10 @@ func GetEnvValue(state *State, key string) ungo.Optional[[]string] {
 	return result
 }
 
+func writeLastStatus(state *State, w io.Writer) {
+	fmt.Fprintln(w, state.lastExitCode)
+}
+
 func writeSecurityStatus(state *State, w io.Writer) error {
 	path := state.configPath
 	if path == "" {
@@ -126,6 +130,11 @@ func writeSecurityStatus(state *State, w io.Writer) error {
 }
 
 func init() {
+	RegisterCmd("!last-status", func(state *State, command []string) ungo.Optional[error] {
+		writeLastStatus(state, os.Stdout)
+		return ungo.None[error]()
+	})
+
 	RegisterCmd("!security-status", func(state *State, command []string) ungo.Optional[error] {
 		if err := writeSecurityStatus(state, os.Stdout); err != nil {
 			return ungo.Some(err)

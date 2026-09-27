@@ -16,7 +16,7 @@ The project currently has two related goals:
 The active development line is:
 
 ```text
-v1.4.2-parser-input-coverage
+v1.4.2-pipeline-status
 ```
 
 The current security branch is based on the following progression:
@@ -33,7 +33,9 @@ main
                             └── v1.4.2-default-cloth-hardening
                                 └── v1.4.2-windows-default-cloth-acl
                                     └── v1.4.2-security-status
-                                        └── v1.4.2-parser-input-coverage (active)
+                                        └── v1.4.2-parser-input-coverage
+                                            └── v1.4.2-readme-current-behavior
+                                                └── v1.4.2-pipeline-status (active)
 ```
 
 Branches are intentionally used for potentially breaking security changes. After validation, feature branches are merged into `v1.4.2`, pushed, and then used as the base for the next isolated experiment.
@@ -149,6 +151,7 @@ Wine can catch basic startup and command-processing regressions; it does not val
 The following foundations exist:
 
 - Parser rejects empty command names, malformed/repeated redirections, and pipe stages without commands; blank input remains a no-op.
+- `!last-status` reports the previous non-empty command's status. External-only pipelines use the final stage's status; buffered pipelines stop at the first failed stage.
 - Pasted interactive batches preserve commands across the input buffer boundary; continuation, CRLF, and Ctrl+C cancellation are covered by tests.
 - Nested `!wear` command source is tracked and restored, including loads initiated by the default-configuration source.
 - Command-source tracking.

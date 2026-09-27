@@ -20,7 +20,7 @@ Security changes should not begin until the existing parser and interactive-inpu
   - [x] Document broken-pipe behavior and upstream cancellation.
   - [x] Define how mixed internal/external pipelines handle backpressure.
   - [x] Document current output ordering and stage-failure reporting behavior.
-  - [ ] Define and test consistent shell-visible pipeline exit status and upstream failure behavior.
+  - [x] Define and test shell-visible status codes and pipeline exit status behavior: external-only pipelines use the final stage status; buffered pipelines stop and report the first failed stage.
 - [x] Establish a baseline regression run before implementing privilege changes (`go test ./...` passed on the feature branch before implementation).
 
 ### Experiment policy

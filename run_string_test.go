@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -82,6 +83,108 @@ func TestRunStringAllowsTrustedNonInteractiveCommand(t *testing.T) {
 	}
 }
 
+func TestRunStringTracksSingleCommandExitStatus(t *testing.T) {
+	command, state := testCommandHelper(t, "exit-seven")
+	state.interactiveInput = false
+	var output bytes.Buffer
+	RunStringTo(state, command, &output)
+	if state.lastExitCode != 7 {
+		t.Fatalf("last exit code: got %d, want 7; output %q", state.lastExitCode, output.String())
+	}
+
+	output.Reset()
+	writeLastStatus(state, &output)
+	if got, want := output.String(), "7\n"; got != want {
+		t.Fatalf("last-status output: got %q, want %q", got, want)
+	}
+}
+
+func TestRunStringAssignsFailureStatuses(t *testing.T) {
+	command, state := testCommandHelper(t, "exit-seven")
+	state.interactiveInput = false
+	state.trustStore = TrustStore{}
+
+	RunStringTo(state, command, &bytes.Buffer{})
+	if state.lastExitCode != 126 {
+		t.Fatalf("denied command status: got %d, want 126", state.lastExitCode)
+	}
+
+	RunStringTo(state, "loin-command-that-does-not-exist", &bytes.Buffer{})
+	if state.lastExitCode != 127 {
+		t.Fatalf("missing command status: got %d, want 127", state.lastExitCode)
+	}
+
+	RunStringTo(state, `echo one || echo two`, &bytes.Buffer{})
+	if state.lastExitCode != 2 {
+		t.Fatalf("parse error status: got %d, want 2", state.lastExitCode)
+	}
+}
+
+func TestRunStringPipelineStatusUsesFinalStage(t *testing.T) {
+	upstreamCommand, state := testCommandHelper(t, "write-exit-seven")
+	downstreamCommand, _ := testCommandHelper(t, "copy-and-write-exit-zero")
+	state.interactiveInput = false
+	var output bytes.Buffer
+	RunStringTo(state, upstreamCommand+` | `+downstreamCommand, &output)
+	if state.lastExitCode != 0 {
+		t.Fatalf("pipeline exit code: got %d, want final-stage status 0; output %q", state.lastExitCode, output.String())
+	}
+	if got, want := output.String(), "upstream\ndownstream\n"; got != want {
+		t.Fatalf("pipeline output order: got %q, want %q", got, want)
+	}
+
+	failingCommand, _ := testCommandHelper(t, "exit-seven")
+	output.Reset()
+	RunStringTo(state, downstreamCommand+` | `+failingCommand, &output)
+	if state.lastExitCode != 7 {
+		t.Fatalf("pipeline final-stage exit code: got %d, want 7", state.lastExitCode)
+	}
+}
+
+func TestBlankInputPreservesLastExitStatus(t *testing.T) {
+	state := &State{lastExitCode: 7}
+	RunStringTo(state, " \t ", &bytes.Buffer{})
+	if state.lastExitCode != 7 {
+		t.Fatalf("blank input changed last status to %d", state.lastExitCode)
+	}
+}
+
+func TestRunStringReportsInternalCommandIOFailure(t *testing.T) {
+	state := newInputTestState()
+	var output bytes.Buffer
+	RunStringTo(state, `ls "/loin-cloth-path-that-does-not-exist"`, &output)
+	if state.lastExitCode != 1 {
+		t.Fatalf("internal I/O failure status: got %d, want 1; output %q", state.lastExitCode, output.String())
+	}
+	if !strings.Contains(output.String(), "Error:") {
+		t.Fatalf("expected ls error output, got %q", output.String())
+	}
+}
+
+func TestBufferedPipelineStopsAtFirstFailedStage(t *testing.T) {
+	state := newInputTestState()
+	downstreamRan := false
+	RegisterCmd("!pipeline-status-fail", func(state *State, command []string) ungo.Optional[error] {
+		return ungo.Some(errors.New("intentional stage failure"))
+	})
+	RegisterCmd("!pipeline-status-should-not-run", func(state *State, command []string) ungo.Optional[error] {
+		downstreamRan = true
+		return ungo.None[error]()
+	})
+
+	var output bytes.Buffer
+	RunStringTo(state, "!pipeline-status-fail | !pipeline-status-should-not-run", &output)
+	if downstreamRan {
+		t.Fatal("buffered pipeline ran a stage after failure")
+	}
+	if state.lastExitCode != 1 {
+		t.Fatalf("buffered pipeline status: got %d, want 1", state.lastExitCode)
+	}
+	if !strings.Contains(output.String(), "intentional stage failure") {
+		t.Fatalf("failed stage error missing from output: %q", output.String())
+	}
+}
+
 func TestCommandExecutionHelper(t *testing.T) {
 	helperIndex := -1
 	for i, arg := range os.Args {
@@ -100,6 +203,18 @@ func TestCommandExecutionHelper(t *testing.T) {
 	switch os.Args[helperIndex+1] {
 	case "lines":
 		_, _ = io.WriteString(os.Stdout, "zulu\nalpha\nbravo\n")
+	case "exit-seven":
+		os.Exit(7)
+	case "write-exit-seven":
+		_, _ = io.WriteString(os.Stdout, "upstream\n")
+		os.Exit(7)
+	case "write-exit-zero":
+		_, _ = io.WriteString(os.Stdout, "downstream\n")
+	case "copy-and-write-exit-zero":
+		if _, err := io.Copy(os.Stdout, os.Stdin); err != nil {
+			os.Exit(1)
+		}
+		_, _ = io.WriteString(os.Stdout, "downstream\n")
 	case "first":
 		_, _ = io.WriteString(os.Stdout, "first\n")
 	case "second":
