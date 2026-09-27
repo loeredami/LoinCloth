@@ -101,6 +101,35 @@ func TestTrustStorePersistsAndLoads(t *testing.T) {
 	}
 }
 
+func TestTrustStoreConcurrentReadAndWriteStaysValid(t *testing.T) {
+	path := trustStoreTestPath(t)
+	const writers = 8
+	done := make(chan error, writers)
+	for i := 0; i < writers; i++ {
+		go func(index int) {
+			store := TrustStore{}
+			store.Add(TrustEntry{
+				Rule:   fmt.Sprintf("/usr/bin/tool-%d", index),
+				Kind:   TrustExactPath,
+				Source: SourceInteractive,
+			})
+			done <- SaveTrustStore(path, store)
+		}(i)
+	}
+	for i := 0; i < writers; i++ {
+		if err := <-done; err != nil {
+			t.Fatalf("concurrent trust store save: %v", err)
+		}
+	}
+	loaded, err := LoadTrustStore(path)
+	if err != nil {
+		t.Fatalf("load trust store after concurrent saves: %v", err)
+	}
+	if len(loaded.Entries()) != 1 {
+		t.Fatalf("concurrent writes left invalid entry count: %#v", loaded.Entries())
+	}
+}
+
 func TestTrustStoreLoadRejectsWorkspaceCommandRule(t *testing.T) {
 	path := trustStoreTestPath(t)
 	data := []byte(`{"version":1,"entries":[{"Rule":"!wear","Kind":1,"Source":0}]}`)

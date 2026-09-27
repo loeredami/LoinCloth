@@ -261,9 +261,10 @@ The trust list controls whether an external executable may run without explicit 
 - [ ] If pre-access enforcement is unavailable, fail closed or clearly label the feature as audit-only rather than claiming it provides protection.
 
 - [ ] Define the trust-store location, ownership, permissions, format, locking, atomic updates, backup behavior, and corruption recovery.
+- [x] Serialize trust-store loads, snapshots, and atomic replacements across Loin processes with a protected OS-level file lock.
 - [x] Validate trust-store ownership and permissions, reject symlink/reparse-point files, and restrict trust-store directories/files to the current user where the platform supports it.
 - [x] Fail closed when the trust store cannot be loaded: discard in-memory entries, refuse inspection/mutation and persistent approval, and report the unavailable store instead of replacing it.
-- [x] Detect trust-store content modification or deletion after successful loading; invalidate in-memory entries and require restart to reload.
+- [x] Detect trust-store content modification or deletion after successful loading; invalidate in-memory entries and require explicit confirmed `!trust-reload` to reload.
 - [x] Provide explicit interactive trust-store recovery: after the file is reviewed/repaired, require confirmation, revalidate it, then reload; keep the store unavailable on failure.
 - [ ] Resolve executable identity immediately before launch and define protections against time-of-check/time-of-use replacement.
 - [ ] Define whether trust is based on path, file identity, content hash, publisher/signature, or a combination of these.

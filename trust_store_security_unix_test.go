@@ -56,6 +56,20 @@ func TestTrustStoreSaveCreatesPrivateLocation(t *testing.T) {
 	}
 }
 
+func TestTrustStoreLockHasPrivatePermissions(t *testing.T) {
+	path := filepath.Join(t.TempDir(), ".loin", "trust.json")
+	if _, err := LoadTrustStore(path); err != nil {
+		t.Fatalf("load absent trust store: %v", err)
+	}
+	lockInfo, err := os.Stat(path + ".lock")
+	if err != nil {
+		t.Fatalf("stat trust store lock: %v", err)
+	}
+	if lockInfo.Mode().Perm() != 0600 {
+		t.Fatalf("trust store lock mode = %04o, want 0600", lockInfo.Mode().Perm())
+	}
+}
+
 func TestTrustStoreRejectsSymlink(t *testing.T) {
 	dir := t.TempDir()
 	target := filepath.Join(dir, "target.json")

@@ -145,6 +145,18 @@ func LoadTrustStore(path string) (TrustStore, error) {
 }
 
 func loadTrustStoreSnapshot(path string) (TrustStore, [32]byte, bool, error) {
+	var store TrustStore
+	var hash [32]byte
+	var exists bool
+	err := withTrustStoreLock(path, func() error {
+		var err error
+		store, hash, exists, err = loadTrustStoreSnapshotUnlocked(path)
+		return err
+	})
+	return store, hash, exists, err
+}
+
+func loadTrustStoreSnapshotUnlocked(path string) (TrustStore, [32]byte, bool, error) {
 	data, err := readTrustStoreFile(path)
 	if os.IsNotExist(err) {
 		return TrustStore{}, [32]byte{}, false, nil
@@ -180,17 +192,30 @@ func parseTrustStore(data []byte) (TrustStore, error) {
 }
 
 func trustStoreSnapshot(path string) ([32]byte, bool, error) {
-	data, err := readTrustStoreFile(path)
-	if os.IsNotExist(err) {
-		return [32]byte{}, false, nil
-	}
-	if err != nil {
-		return [32]byte{}, false, err
-	}
-	return sha256.Sum256(data), true, nil
+	var hash [32]byte
+	var exists bool
+	err := withTrustStoreLock(path, func() error {
+		data, err := readTrustStoreFile(path)
+		if os.IsNotExist(err) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		hash = sha256.Sum256(data)
+		exists = true
+		return nil
+	})
+	return hash, exists, err
 }
 
 func SaveTrustStore(path string, store TrustStore) error {
+	return withTrustStoreLock(path, func() error {
+		return saveTrustStoreUnlocked(path, store)
+	})
+}
+
+func saveTrustStoreUnlocked(path string, store TrustStore) error {
 	for _, entry := range store.Entries() {
 		if err := validateTrustEntry(entry); err != nil {
 			return fmt.Errorf("cannot save invalid trust entry: %w", err)
