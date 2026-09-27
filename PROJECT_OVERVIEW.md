@@ -173,6 +173,8 @@ The following foundations exist:
 - Child process environments are assembled with `ungo.SmallMap` while preserving host environment values and applying scope overrides in order. In fair local benchmarks (same parsing and output construction), this took about 6.5 us/88 allocations versus 7.5 us/90 allocations for a built-in map, with about 6 KB more temporary allocation. The legacy path measured about 18 us/345 allocations.
 - A command-registry benchmark found that reducing the `SmallMap` constructor capacity hint from 256 to 64 lowers one-time allocation substantially and keeps hit lookup close to a Go map, while misses remain slower. See `BenchmarkCommandRegistry*` and `ROADMAP.md` for the trade-offs and ongoing experiments across other `ungo` APIs.
 - `ungo.Optional.Value()` silently returns the zero value when absent. Current-workspace access now checks presence and structure before extracting it; regression tests cover missing and malformed workspace state.
+- A pasted-command batch benchmark found that `ungo.Queue`'s linked node per command is allocation-heavy versus contiguous slice/string buffers, so input buffering remains unchanged. See `BenchmarkCommandBatchQueue` and the roadmap for the measured workload and caveat.
+- Concurrency helpers were reviewed but not adopted: current `ungo.Worker`, `Promise`, and `EventLoop` implementations have cancellation, synchronization, typing, and lifecycle limitations documented in the roadmap.
 - Pasted interactive batches preserve commands across the input buffer boundary; continuation, CRLF, and Ctrl+C cancellation are covered by tests.
 - Nested `!wear` command source is tracked and restored, including loads initiated by the default-configuration source.
 - Command-source tracking.
