@@ -60,6 +60,21 @@ func TestRunStringBlocksUntrustedNonInteractiveCommand(t *testing.T) {
 	}
 }
 
+func TestRejectedTrustStoreDoesNotAuthorizePreviouslyLoadedEntries(t *testing.T) {
+	command, state := testCommandHelper(t, "first")
+	state.interactiveInput = false
+	state.trustStore = TrustStore{}
+	state.trustStoreError = fmt.Errorf("invalid trust store")
+	var output bytes.Buffer
+	RunStringTo(state, command, &output)
+	if strings.Contains(output.String(), "first") {
+		t.Fatalf("command ran with rejected trust store: %q", output.String())
+	}
+	if state.lastExitCode != 126 {
+		t.Fatalf("rejected trust store command status: got %d, want 126", state.lastExitCode)
+	}
+}
+
 func TestRunStringDeniesBeforeCreatingRedirectOutput(t *testing.T) {
 	command, state := testCommandHelper(t, "first")
 	state.trustStore = TrustStore{}

@@ -50,6 +50,11 @@ func promptExecutableTrust(state *State, executablePath string, output *bufio.Wr
 	case "1":
 		return true
 	case "2":
+		if err := trustStoreAvailable(state); err != nil {
+			fmt.Fprintf(output, "%v\n", err)
+			output.Flush()
+			return false
+		}
 		kind, rule := ParseTrustRule(executablePath)
 		fmt.Fprintf(output, "Persist trust rule %q? [y/N]: ", rule)
 		output.Flush()

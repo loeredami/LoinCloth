@@ -1,7 +1,11 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
+	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -129,6 +133,98 @@ func TestTrustStoreRejectsInvalidData(t *testing.T) {
 	}
 	if _, err := LoadTrustStore(path); err == nil {
 		t.Fatal("invalid trust store was accepted")
+	}
+}
+
+func TestCorruptTrustStoreFailsClosedAndManagementDoesNotOverwrite(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "trust.json")
+	corrupt := []byte(`{"version":99,"entries":[]}`)
+	if err := os.WriteFile(path, corrupt, 0600); err != nil {
+		t.Fatalf("write corrupt store: %v", err)
+	}
+	state := &State{
+		commandSource:    SourceInteractive,
+		interactiveInput: true,
+		trustStore:       TrustStore{},
+	}
+	kind, rule := ParseTrustRule("/usr/bin/example")
+	state.trustStore.Add(TrustEntry{Rule: rule, Kind: kind, Source: SourceInteractive})
+	if err := loadTrustStoreIntoState(state, path); err == nil {
+		t.Fatal("corrupt trust store loaded without error")
+	}
+	if len(state.trustStore.Entries()) != 0 {
+		t.Fatalf("invalid trust entries remained active: %#v", state.trustStore.Entries())
+	}
+	if state.trustStoreError == nil {
+		t.Fatal("trust store failure was not recorded")
+	}
+
+	for _, command := range [][]string{
+		{"!trust", "/usr/bin/new-command"},
+		{"!trust-list"},
+		{"!untrust", "/usr/bin/example"},
+	} {
+		result := HandleStateCommands(state, command)
+		if !result.HasValue() || !strings.Contains(result.Value().Error(), "trust store unavailable") {
+			t.Errorf("%q was not blocked on rejected store: %v", command, result)
+		}
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read original corrupt store: %v", err)
+	}
+	if !bytes.Equal(data, corrupt) {
+		t.Fatalf("trust management modified corrupt data: got %q, want %q", data, corrupt)
+	}
+}
+
+func TestRejectedTrustStoreBlocksPersistentPromptChoice(t *testing.T) {
+	withPromptInput(t, "2")
+	path := filepath.Join(t.TempDir(), "trust.json")
+	state := &State{
+		trustStorePath:  path,
+		trustStoreError: fmt.Errorf("unsupported trust store version"),
+	}
+	var output bytes.Buffer
+	writer := bufio.NewWriter(&output)
+	if promptExecutableTrust(state, "/usr/bin/example", writer) {
+		t.Fatal("persistent approval succeeded with unavailable trust store")
+	}
+	writer.Flush()
+	if len(state.trustStore.Entries()) != 0 {
+		t.Fatalf("unavailable trust store acquired entries: %#v", state.trustStore.Entries())
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("persistent approval overwrote rejected store, stat error: %v", err)
+	}
+}
+
+func TestRejectedTrustStoreStillAllowsRunOnce(t *testing.T) {
+	withPromptInput(t, "1")
+	state := &State{trustStoreError: fmt.Errorf("invalid trust store")}
+	var output bytes.Buffer
+	writer := bufio.NewWriter(&output)
+	if !promptExecutableTrust(state, "/usr/bin/example", writer) {
+		t.Fatalf("Run Once should remain available when persistence is unavailable: %s", output.String())
+	}
+	writer.Flush()
+	if len(state.trustStore.Entries()) != 0 {
+		t.Fatalf("Run Once added trust to unavailable store: %#v", state.trustStore.Entries())
+	}
+}
+
+func TestSecurityStatusReportsRejectedTrustStore(t *testing.T) {
+	state := &State{
+		configPath:      "development.cloth",
+		trustStorePath:  "/tmp/trust.json",
+		trustStoreError: fmt.Errorf("unsupported trust store version"),
+	}
+	var output bytes.Buffer
+	if err := writeSecurityStatus(state, &output); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(output.String(), "Executable trust store: unavailable (unsupported trust store version)") {
+		t.Fatalf("status did not expose rejected store state: %q", output.String())
 	}
 }
 

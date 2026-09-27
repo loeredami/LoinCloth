@@ -52,6 +52,7 @@ type State struct {
 
 	trustStore       TrustStore
 	trustStorePath   string
+	trustStoreError  error
 	interactiveInput bool
 	lastExitCode     int
 }

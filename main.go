@@ -1112,18 +1112,31 @@ func selectedClothWarning(path string) string {
 }
 
 func InitializeTrustStore(state *State) {
+	state.trustStorePath = ""
+	state.trustStore = TrustStore{}
+	state.trustStoreError = nil
 	path, err := DefaultTrustStorePath()
 	if err != nil {
+		state.trustStoreError = err
 		fmt.Printf("Trust store unavailable: %v\n", err)
 		return
 	}
+	if err := loadTrustStoreIntoState(state, path); err != nil {
+		fmt.Printf("Trust store rejected: %v\n", err)
+	}
+}
+
+func loadTrustStoreIntoState(state *State, path string) error {
+	state.trustStorePath = path
 	store, err := LoadTrustStore(path)
 	if err != nil {
-		fmt.Printf("Trust store rejected: %v\n", err)
-		return
+		state.trustStore = TrustStore{}
+		state.trustStoreError = err
+		return err
 	}
-	state.trustStorePath = path
 	state.trustStore = store
+	state.trustStoreError = nil
+	return nil
 }
 
 func RunNonInteractive(state *State) {

@@ -81,6 +81,13 @@ func writeLastStatus(state *State, w io.Writer) {
 	fmt.Fprintln(w, state.lastExitCode)
 }
 
+func trustStoreAvailable(state *State) error {
+	if state.trustStoreError != nil {
+		return fmt.Errorf("trust store unavailable: %w", state.trustStoreError)
+	}
+	return nil
+}
+
 func writeSecurityStatus(state *State, w io.Writer) error {
 	path := state.configPath
 	if path == "" {
@@ -98,7 +105,9 @@ func writeSecurityStatus(state *State, w io.Writer) error {
 		trusted = "Yes"
 	}
 	fmt.Fprintf(w, "Configuration trusted: %s\n", trusted)
-	if state.trustStorePath == "" {
+	if err := trustStoreAvailable(state); err != nil {
+		fmt.Fprintf(w, "Executable trust store: unavailable (%v)\n", state.trustStoreError)
+	} else if state.trustStorePath == "" {
 		fmt.Fprintln(w, "Executable trust store: unavailable")
 	} else {
 		fmt.Fprintf(w, "Executable trust store: %s (%d entries)\n", state.trustStorePath, len(state.trustStore.Entries()))
@@ -123,6 +132,9 @@ func init() {
 	RegisterCmd("!trust", func(state *State, command []string) ungo.Optional[error] {
 		if state.commandSource != SourceInteractive || !state.interactiveInput {
 			return ungo.Some(fmt.Errorf("!trust requires direct interactive input"))
+		}
+		if err := trustStoreAvailable(state); err != nil {
+			return ungo.Some(err)
 		}
 		if len(command) < 2 {
 			return ungo.Some(fmt.Errorf("expected executable path, basename, or explicit glob"))
@@ -160,6 +172,9 @@ func init() {
 		if state.commandSource != SourceInteractive || !state.interactiveInput {
 			return ungo.Some(fmt.Errorf("!trust-list requires direct interactive input"))
 		}
+		if err := trustStoreAvailable(state); err != nil {
+			return ungo.Some(err)
+		}
 		entries := state.trustStore.Entries()
 		if len(entries) == 0 {
 			fmt.Println("trust list is empty")
@@ -174,6 +189,9 @@ func init() {
 	RegisterCmd("!untrust", func(state *State, command []string) ungo.Optional[error] {
 		if state.commandSource != SourceInteractive || !state.interactiveInput {
 			return ungo.Some(fmt.Errorf("!untrust requires direct interactive input"))
+		}
+		if err := trustStoreAvailable(state); err != nil {
+			return ungo.Some(err)
 		}
 		if len(command) < 2 {
 			return ungo.Some(fmt.Errorf("expected executable path, basename, or explicit glob"))
