@@ -53,7 +53,7 @@ The trust list controls whether an external executable may run without explicit 
 
 - [x] Define the initial trust decision engine: trusted and `default.cloth` commands are allowed, interactive unknown commands prompt, and non-interactive unknown commands are denied.
 - [x] Wire trust decisions into standalone external command launch and every external pipeline stage.
-- [x] Add interactive `Run Once` / `Add command to allow list` / `Do not run` approval handling.
+- [x] Add interactive `Run Once` / `Trust for this session` / `Do not run` approval handling.
 - [x] Deny unknown non-interactive external commands before launch.
 - [x] Require approval for commands sourced from non-default `.cloth` files, even when their executable is trusted.
 - [x] Add an explicit confirmation step before persisting trust from `!trust`.
@@ -87,8 +87,8 @@ The trust list controls whether an external executable may run without explicit 
 - [ ] Propagate command source through nested `!wear` loads so commands retain their original file context.
 - [x] Treat commands loaded from non-default `.cloth` files as gray-listed rather than trusted.
 - [x] Prompt when a command is not trusted or is gray-listed:
-  1. `Run Once` — execute this invocation without creating a persistent trust entry.
-  2. `Add command to allow list` — persist an explicit trust entry.
+  1. `Run Once` — execute this invocation without changing session trust.
+  2. `Trust for this session` — add an explicit rule to this Loin process's in-memory trust list.
   3. `Do not run` — deny the invocation.
 - [x] Prompt once per external command stage from a gray-listed source.
 - [x] Apply the same approval decision independently to each external stage in a pipeline.
@@ -104,9 +104,9 @@ The trust list controls whether an external executable may run without explicit 
   - [ ] No implicit substring matching.
 - [x] Add an isolated trust-matching prototype with exact-path, basename, and explicit-glob rules.
 - [x] Add regression tests for cross-platform basename matching and duplicate trust entries.
-- [x] Require explicit confirmation before adding a trust entry through the execution prompt; declining denies the command and leaves the trust store unchanged.
-- [ ] Provide commands to inspect and revoke trust entries.
-- [ ] Make `Add command to allow list` store the narrowest possible rule, preferring resolved path and executable identity over a broad basename or wildcard.
+- [x] Require explicit confirmation before adding an executable rule to the current session's trust list; declining denies the command.
+- [x] Provide direct-interactive commands to inspect and revoke current-session trust entries.
+- [ ] Make `Trust for this session` use the narrowest possible rule, preferring resolved path and executable identity over a broad basename or wildcard.
 - [ ] Define behavior when a trusted executable changes, including replacement, symlink, or Windows reparse-point scenarios.
 - [ ] Consider storing executable identity with trust entries, such as resolved path plus content hash and optional Windows signature metadata.
 - [ ] Invalidate or re-confirm trust when the trusted executable identity changes.
@@ -157,10 +157,10 @@ The trust list controls whether an external executable may run without explicit 
 #### Trust list versus scopes
 
 - [ ] Keep the security trust list separate from workspace scopes by default.
-- [ ] Use a dedicated persistent trust store with explicit ownership and restrictive permissions.
-- [x] Add an isolated versioned trust-store persistence prototype with validation, restrictive temporary-file permissions, atomic replacement, and removal support.
-- [x] Integrate the persistent store with `!trust`, inspection, and revocation commands.
-- [ ] Integrate the persistent store with command authorization.
+- [ ] Decide whether to retain or remove the standalone persistent trust-store prototype; current runtime trust is session-scoped.
+- [x] Add an isolated versioned trust-store persistence prototype with validation, restrictive temporary-file permissions, atomic replacement, and removal support (not connected to runtime authorization).
+- [x] Keep `!trust`, trust inspection, and revocation session-local.
+- [ ] Integrate a persistent store with command authorization; not desired in the current session-specific design.
 - [ ] Consider optional scope-local, temporary trust entries only as an isolated future feature.
 - [ ] Do not store executable trust entries in `.cloth` files, because those files can be loaded from untrusted projects.
 - [ ] Document that scopes manage environment overrides and workspace state, not security authorization.
@@ -260,12 +260,8 @@ The trust list controls whether an external executable may run without explicit 
 - [ ] Windows feasibility review: evaluate supported file-system/process monitoring APIs or a service/minifilter architecture; ordinary directory watchers are insufficient for enforcement.
 - [ ] If pre-access enforcement is unavailable, fail closed or clearly label the feature as audit-only rather than claiming it provides protection.
 
-- [ ] Define the trust-store location, ownership, permissions, format, locking, atomic updates, backup behavior, and corruption recovery.
-- [x] Serialize trust-store loads, snapshots, and atomic replacements across Loin processes with a protected OS-level file lock.
-- [x] Validate trust-store ownership and permissions, reject symlink/reparse-point files, and restrict trust-store directories/files to the current user where the platform supports it.
-- [x] Fail closed when the trust store cannot be loaded: discard in-memory entries, refuse inspection/mutation and persistent approval, and report the unavailable store instead of replacing it.
-- [x] Detect trust-store content modification or deletion after successful loading; invalidate in-memory entries and require explicit confirmed `!trust-reload` to reload.
-- [x] Provide explicit interactive trust-store recovery: after the file is reviewed/repaired, require confirmation, revalidate it, then reload; keep the store unavailable on failure.
+- [x] Keep executable approval trust local to each Loin process; do not load shared or persistent entries into a running session.
+- [ ] Define persistence behavior only if persistent trust is explicitly reintroduced in a future design.
 - [ ] Resolve executable identity immediately before launch and define protections against time-of-check/time-of-use replacement.
 - [ ] Define whether trust is based on path, file identity, content hash, publisher/signature, or a combination of these.
 - [ ] Sanitize privileged child environments by default; explicitly define which variables and workspace overrides may cross the elevation boundary.

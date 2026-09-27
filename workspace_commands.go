@@ -81,46 +81,6 @@ func writeLastStatus(state *State, w io.Writer) {
 	fmt.Fprintln(w, state.lastExitCode)
 }
 
-func trustStoreAvailable(state *State) error {
-	if state == nil {
-		return fmt.Errorf("trust store unavailable: no security state available")
-	}
-	if state.trustStoreError == nil && state.trustStoreTracked {
-		hash, exists, err := trustStoreSnapshot(state.trustStorePath)
-		if err != nil {
-			state.trustStore = TrustStore{}
-			state.trustStoreError = fmt.Errorf("cannot verify trust store: %w", err)
-		} else if exists != state.trustStoreExists || hash != state.trustStoreHash {
-			state.trustStore = TrustStore{}
-			state.trustStoreError = fmt.Errorf("trust store changed after loading; restart Loin to reload it")
-		}
-	}
-	if state.trustStoreError != nil {
-		return fmt.Errorf("trust store unavailable: %w", state.trustStoreError)
-	}
-	return nil
-}
-
-func recordTrustStoreSnapshot(state *State) error {
-	hash, exists, err := trustStoreSnapshot(state.trustStorePath)
-	if err != nil {
-		state.trustStore = TrustStore{}
-		state.trustStoreError = fmt.Errorf("cannot verify saved trust store: %w", err)
-		state.trustStoreTracked = false
-		return state.trustStoreError
-	}
-	if !exists {
-		state.trustStore = TrustStore{}
-		state.trustStoreError = fmt.Errorf("saved trust store is missing")
-		state.trustStoreTracked = false
-		return state.trustStoreError
-	}
-	state.trustStoreHash = hash
-	state.trustStoreExists = true
-	state.trustStoreTracked = true
-	return nil
-}
-
 func writeSecurityStatus(state *State, w io.Writer) error {
 	path := state.configPath
 	if path == "" {
@@ -138,13 +98,7 @@ func writeSecurityStatus(state *State, w io.Writer) error {
 		trusted = "Yes"
 	}
 	fmt.Fprintf(w, "Configuration trusted: %s\n", trusted)
-	if err := trustStoreAvailable(state); err != nil {
-		fmt.Fprintf(w, "Executable trust store: unavailable (%v)\n", state.trustStoreError)
-	} else if state.trustStorePath == "" {
-		fmt.Fprintln(w, "Executable trust store: unavailable")
-	} else {
-		fmt.Fprintf(w, "Executable trust store: %s (%d entries)\n", state.trustStorePath, len(state.trustStore.Entries()))
-	}
+	fmt.Fprintf(w, "Session trust rules: %d (not saved between Loin launches)\n", len(state.trustStore.Entries()))
 	fmt.Fprintln(w, "Privilege state: normal (explicit elevation is not active)")
 	return nil
 }
@@ -166,9 +120,6 @@ func init() {
 		if state.commandSource != SourceInteractive || !state.interactiveInput {
 			return ungo.Some(fmt.Errorf("!trust requires direct interactive input"))
 		}
-		if err := trustStoreAvailable(state); err != nil {
-			return ungo.Some(err)
-		}
 		if len(command) < 2 {
 			return ungo.Some(fmt.Errorf("expected executable path, basename, or explicit glob"))
 		}
@@ -176,7 +127,7 @@ func init() {
 			return ungo.Some(fmt.Errorf("workspace commands cannot be trusted as executables"))
 		}
 		kind, rule := ParseTrustRule(command[1])
-		fmt.Fprintf(os.Stderr, "Add trust rule %q (kind %d)? [y/N]: ", rule, kind)
+		fmt.Fprintf(os.Stderr, "Trust rule %q for this session (kind %d)? [y/N]: ", rule, kind)
 		var confirmation string
 		if _, err := fmt.Fscanln(os.Stdin, &confirmation); err != nil || !strings.EqualFold(confirmation, "y") && !strings.EqualFold(confirmation, "yes") {
 			fmt.Fprintln(os.Stderr, "trust entry not added")
@@ -184,26 +135,8 @@ func init() {
 		}
 
 		entry := TrustEntry{Rule: rule, Kind: kind, Source: SourceInteractive}
-		candidate := state.trustStore.Clone()
-		candidate.Add(entry)
-		if state.trustStorePath == "" {
-			path, err := DefaultTrustStorePath()
-			if err != nil {
-				return ungo.Some(err)
-			}
-			state.trustStorePath = path
-		}
-		if err := trustStoreAvailable(state); err != nil {
-			return ungo.Some(err)
-		}
-		if err := SaveTrustStore(state.trustStorePath, candidate); err != nil {
-			return ungo.Some(fmt.Errorf("failed to save trust store: %v", err))
-		}
-		if err := recordTrustStoreSnapshot(state); err != nil {
-			return ungo.Some(err)
-		}
-		state.trustStore = candidate
-		fmt.Printf("trusted %s (%d)\n", rule, kind)
+		state.trustStore.Add(entry)
+		fmt.Printf("trusted %s for this session (%d)\n", rule, kind)
 		return ungo.None[error]()
 	})
 
@@ -211,14 +144,12 @@ func init() {
 		if state.commandSource != SourceInteractive || !state.interactiveInput {
 			return ungo.Some(fmt.Errorf("!trust-list requires direct interactive input"))
 		}
-		if err := trustStoreAvailable(state); err != nil {
-			return ungo.Some(err)
-		}
 		entries := state.trustStore.Entries()
 		if len(entries) == 0 {
-			fmt.Println("trust list is empty")
+			fmt.Println("session trust list is empty")
 			return ungo.None[error]()
 		}
+		fmt.Println("Session trust rules (active until exit):")
 		for _, entry := range entries {
 			fmt.Printf("%s (%d, source: %s)\n", entry.Rule, entry.Kind, entry.Source)
 		}
@@ -229,63 +160,14 @@ func init() {
 		if state.commandSource != SourceInteractive || !state.interactiveInput {
 			return ungo.Some(fmt.Errorf("!untrust requires direct interactive input"))
 		}
-		if err := trustStoreAvailable(state); err != nil {
-			return ungo.Some(err)
-		}
 		if len(command) < 2 {
 			return ungo.Some(fmt.Errorf("expected executable path, basename, or explicit glob"))
 		}
 		kind, rule := ParseTrustRule(command[1])
-		candidate := state.trustStore.Clone()
-		if !candidate.RemoveRule(kind, rule) {
+		if !state.trustStore.RemoveRule(kind, rule) {
 			return ungo.Some(fmt.Errorf("trust entry not found: %s", rule))
 		}
-		if state.trustStorePath == "" {
-			path, err := DefaultTrustStorePath()
-			if err != nil {
-				return ungo.Some(err)
-			}
-			state.trustStorePath = path
-		}
-		if err := trustStoreAvailable(state); err != nil {
-			return ungo.Some(err)
-		}
-		if err := SaveTrustStore(state.trustStorePath, candidate); err != nil {
-			return ungo.Some(fmt.Errorf("failed to save trust store: %v", err))
-		}
-		if err := recordTrustStoreSnapshot(state); err != nil {
-			return ungo.Some(err)
-		}
-		state.trustStore = candidate
 		fmt.Printf("removed trust entry %s\n", rule)
-		return ungo.None[error]()
-	})
-
-	RegisterCmd("!trust-reload", func(state *State, command []string) ungo.Optional[error] {
-		if state.commandSource != SourceInteractive || !state.interactiveInput {
-			return ungo.Some(fmt.Errorf("!trust-reload requires direct interactive input"))
-		}
-		if state.trustStoreError == nil {
-			return ungo.Some(fmt.Errorf("trust store is available; no reload is needed"))
-		}
-		fmt.Fprint(os.Stderr, "Reload trust store from disk? [y/N]: ")
-		var confirmation string
-		if _, err := fmt.Fscanln(os.Stdin, &confirmation); err != nil ||
-			(!strings.EqualFold(strings.TrimSpace(confirmation), "y") && !strings.EqualFold(strings.TrimSpace(confirmation), "yes")) {
-			fmt.Fprintln(os.Stderr, "trust store reload declined")
-			return ungo.None[error]()
-		}
-		if state.trustStorePath == "" {
-			path, err := DefaultTrustStorePath()
-			if err != nil {
-				return ungo.Some(fmt.Errorf("cannot locate trust store: %w", err))
-			}
-			state.trustStorePath = path
-		}
-		if err := loadTrustStoreIntoState(state, state.trustStorePath); err != nil {
-			return ungo.Some(fmt.Errorf("trust store reload failed: %w", err))
-		}
-		fmt.Printf("trust store reloaded (%d entries)\n", len(state.trustStore.Entries()))
 		return ungo.None[error]()
 	})
 

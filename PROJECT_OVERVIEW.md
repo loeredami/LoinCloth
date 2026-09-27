@@ -16,7 +16,7 @@ The project currently has two related goals:
 The active development line is:
 
 ```text
-v1.4.2-trust-store-locking
+v1.4.2-session-scoped-trust
 ```
 
 The current security branch is based on the following progression:
@@ -45,7 +45,8 @@ main
                                                                             └── v1.4.2-trust-store-change-detection
                                                                                 └── v1.4.2-trust-store-recovery
                                                                                     └── v1.4.2-trust-store-permissions
-                                                                                        └── v1.4.2-trust-store-locking (active)
+                                                                                        └── v1.4.2-trust-store-locking
+                                                                                            └── v1.4.2-session-scoped-trust (active)
 ```
 
 Branches are intentionally used for potentially breaking security changes. After validation, feature branches are merged into `v1.4.2`, pushed, and then used as the base for the next isolated experiment.
@@ -66,7 +67,7 @@ Branches are intentionally used for potentially breaking security changes. After
 | `workspace_commands.go` | Workspace and `!` command implementations, including environment and scope variable lookup. |
 | `workspace_commands_test.go` | Scope/environment lookup regression tests and a many-scope benchmark. |
 | `command_source.go` | Command-origin classification: interactive input, `default.cloth`, `.cloth`, and development cloth. |
-| `trust_store.go` | Trust-rule matching and persistent trust-store prototype. |
+| `trust_store.go` | Trust-rule matching and standalone persistence prototype; runtime trust is session-local. |
 | `trust_policy.go` | Pure trust decision policy: allow, prompt, or deny. |
 | `trust_*_test.go` | Trust matching, persistence, and policy tests. |
 | `default.cloth` | Repository-local development configuration. |
@@ -171,19 +172,16 @@ The following foundations exist:
 - Command-source tracking.
 - Repository-local development configuration selection with `--cloth`.
 - Trust-rule matching for exact paths, basenames, and explicit globs.
-- Versioned persistent trust-store prototype with validation and atomic writes.
-- If the trust store fails validation at startup, its entries are discarded and trust inspection, changes, and persistent approvals are blocked; `!security-status` reports the unavailable store rather than presenting it as empty.
-- Trust-store content changes or deletion after loading invalidate in-memory entries; `!trust-reload` provides explicit, confirmed recovery after the store has been reviewed or repaired.
-- On Unix-like systems, the trust store must be owned by the current user, regular, non-symlink, and private; its directory is tightened to `0700` and file to `0600`. Windows loads validate owner and DACL protection before reading.
-- Trust-store loads, snapshots, and atomic replacements are serialized between Loin processes with a protected OS-level lock.
+- A standalone versioned trust-store persistence prototype with validation, atomic writes, ownership/permission checks, and cross-process locking; runtime approvals are intentionally not loaded from or saved to it.
+- Runtime trust rules exist only in memory for the current Loin process and are discarded on exit.
 - Trust-store adds, saves, loads, and matching reject workspace command rules beginning with `!`.
 - Direct-interactive trust management commands: `!trust`, `!trust-list`, and `!untrust`.
-- `!trust` requires a separate interactive confirmation before persisting a rule; declining does not modify the store.
-- Choosing “Add command to allow list” at an execution prompt requires a second explicit confirmation; declining prevents both persistence and that command's launch.
-- `!security-status` reports the active configuration path and source, configuration trust, executable trust-store state, and privilege state.
+- `!trust` requires a separate interactive confirmation before adding a rule for the current session; `!trust-list` and `!untrust` inspect and revoke only current-session rules.
+- Choosing “Trust for this session” at an execution prompt requires a second explicit confirmation; declining prevents that command's launch.
+- `!security-status` reports the active configuration path and source, configuration trust, current-session trust-rule count, and privilege state.
 - Explicitly selected `.cloth` files are validated as readable regular files and produce a development-mode warning when outside the protected default location.
 - Launch-time checks for standalone external commands and external stages in pipelines.
-- Interactive approval choices: Run Once, Add command to allow list, or Do not run. Prompts are written to stderr so they do not become redirected command output.
+- Interactive approval choices: Run Once, Trust for this session, or Do not run. Prompts are written to stderr so they do not become redirected command output.
 - Unknown non-interactive external commands are denied before launch.
 - Non-default `.cloth` commands are gray-listed and require interactive approval, even if the executable itself is trusted.
 - Piped stdin is marked non-interactive; it cannot run trust-management commands or approve executables.

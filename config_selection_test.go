@@ -58,7 +58,7 @@ func TestWriteSecurityStatus(t *testing.T) {
 		"Configuration path: development.cloth",
 		"Configuration source: development .cloth",
 		"Configuration trusted: No",
-		"Executable trust store: unavailable",
+		"Session trust rules: 0 (not saved between Loin launches)",
 		"Privilege state: normal",
 	} {
 		if !strings.Contains(result, expected) {

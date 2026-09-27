@@ -21,17 +21,14 @@ Current features include:
 - Nested brace expressions that use the pipeline parser.
 - Unicode-aware prompt redraw behavior for wide characters and emoji.
 - Source tracking for interactive input, `default.cloth`, selected development cloth files, and nested `!wear` loads.
-- Initial trust-rule matching and persistent trust-store prototypes.
+- Session-scoped executable trust rules with interactive approval, inspection, and revocation.
 - A development configuration override through `--cloth`.
 
 Blank input does nothing. Each pipeline stage requires a command, and a stage can have at most one input and one output redirection. Repeated or malformed operators and empty command names are rejected.
 
 External-only pipelines run concurrently with operating-system pipes and use the final stage's exit code; upstream failures do not change the pipeline status. Pipelines with internal commands or buffered redirections run sequentially and stop at the first failed stage. Use `!last-status` to display the previous non-empty command's exit status. See [`SHELL_OPERATORS.md`](SHELL_OPERATORS.md) for details.
 
-Security enforcement and administrator elevation remain experimental and are not complete. Unknown external commands are denied for non-interactive input. Interactive unknown commands can be run once, denied, or added to the allow list; adding requires a separate confirmation, and declining denies that invocation. Workspace commands beginning with `!` cannot be stored as executable trust rules. Commands loaded from non-default `.cloth` files require approval even when the executable is trusted. Selecting a development config with `--cloth` does not grant the default configuration's trust exemption. LoinCloth does not automatically elevate ordinary commands. See [`ROADMAP.md`](ROADMAP.md) for remaining security work.
-If the persistent trust store fails validation at startup or changes after loading, its entries are discarded and trust management/persistence is disabled for that session rather than treating the failed store as empty and overwriting it. Use `!security-status` to see whether the store loaded. After repairing or reviewing the store, use the direct-interactive `!trust-reload` command and confirm the reload to restore trust management.
-The trust store is accepted only when its location is protected: Unix-like systems require current-user ownership and private directory/file permissions; Windows validates the owner and access-control list. Symbolic links and reparse points are rejected.
-Trust-store reads and writes are serialized across Loin processes using a protected lock file; replacements remain atomic.
+Security enforcement and administrator elevation remain experimental and are not complete. Unknown external commands are denied for non-interactive input. Interactive unknown commands can be run once, denied, or trusted for the current Loin session after a separate confirmation. Session trust rules are held in memory only: they are not loaded from or saved to disk, shared with other Loin runs, or retained after exit. `!trust`, `!trust-list`, and `!untrust` manage only the current session's rules. Workspace commands beginning with `!` cannot be trusted as executables. Commands loaded from non-default `.cloth` files require approval even when the executable is trusted. Selecting a development config with `--cloth` does not grant the default configuration's trust exemption. LoinCloth does not automatically elevate ordinary commands. See [`ROADMAP.md`](ROADMAP.md) for remaining security work.
 
 See [`SHELL_OPERATORS.md`](SHELL_OPERATORS.md) for interactive input and shell operator details.
 

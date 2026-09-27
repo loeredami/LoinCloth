@@ -1111,41 +1111,6 @@ func selectedClothWarning(path string) string {
 	return ""
 }
 
-func InitializeTrustStore(state *State) {
-	state.trustStorePath = ""
-	state.trustStore = TrustStore{}
-	state.trustStoreError = nil
-	state.trustStoreHash = [32]byte{}
-	state.trustStoreExists = false
-	state.trustStoreTracked = false
-	path, err := DefaultTrustStorePath()
-	if err != nil {
-		state.trustStoreError = err
-		fmt.Printf("Trust store unavailable: %v\n", err)
-		return
-	}
-	if err := loadTrustStoreIntoState(state, path); err != nil {
-		fmt.Printf("Trust store rejected: %v\n", err)
-	}
-}
-
-func loadTrustStoreIntoState(state *State, path string) error {
-	state.trustStorePath = path
-	store, hash, exists, err := loadTrustStoreSnapshot(path)
-	if err != nil {
-		state.trustStore = TrustStore{}
-		state.trustStoreError = err
-		state.trustStoreTracked = false
-		return err
-	}
-	state.trustStore = store
-	state.trustStoreError = nil
-	state.trustStoreHash = hash
-	state.trustStoreExists = exists
-	state.trustStoreTracked = true
-	return nil
-}
-
 func RunNonInteractive(state *State) {
 	if err := runNonInteractive(state, os.Stdin); err != nil {
 		fmt.Fprintf(os.Stderr, "Error reading command input: %v\n", err)
@@ -1218,8 +1183,6 @@ func main() {
 
 	state.configPath = *selectedCloth
 	state.ResetConfig()
-	InitializeTrustStore(state)
-
 	if info, err := os.Stdin.Stat(); err == nil && info.Mode()&os.ModeCharDevice == 0 {
 		RunNonInteractive(state)
 		return
