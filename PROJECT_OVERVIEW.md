@@ -177,6 +177,7 @@ The following foundations exist:
 - Runtime verification confirmed quoted workspace labels parse and switch correctly, while creating a workspace leaves the current workspace unchanged.
 - A pasted-command batch benchmark found that `ungo.Queue`'s linked node per command is allocation-heavy versus contiguous slice/string buffers, so input buffering remains unchanged. See `BenchmarkCommandBatchQueue` and the roadmap for the measured workload and caveat.
 - Concurrency helpers were reviewed but not adopted: current `ungo.Worker`, `Promise`, and `EventLoop` implementations have cancellation, synchronization, typing, and lifecycle limitations documented in the roadmap.
+- `ungo.PipeSequence` is a useful fit for ordered lexer stages; `ungo.Pipeline` is not used for process execution because it cannot represent command errors, exit status, cancellation, or I/O ownership. Other reviewed APIs with construction/lifecycle limitations are documented in `ROADMAP.md` rather than forced into the shell.
 - Pasted interactive batches preserve commands across the input buffer boundary; continuation, CRLF, and Ctrl+C cancellation are covered by tests.
 - Nested `!wear` command source is tracked and restored, including loads initiated by the default-configuration source.
 - Command-source tracking.

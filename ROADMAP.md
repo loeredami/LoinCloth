@@ -37,7 +37,9 @@ Security changes should not begin until the existing parser and interactive-inpu
 - [x] Runtime-verify scope creation, mutation, and `!snapshot` serialization; the saved `.cloth` reproduced the expected scope and override commands.
 - [x] Review `ungo` concurrency candidates before integration: `Worker.Cancel` only sets a flag the worker never checks; worker result/running state and the global registry are unsynchronized; `Promise` uses a consuming channel and `Reject` type-asserts `error` to `T`; `EventLoop` has close/restart and blocking-post lifecycle hazards. Do not adopt these primitives in shell execution without fixing and testing their contracts in `ungo`.
 - [ ] If `ungo` concurrency primitives are improved, test cancellation, shutdown, repeated result access, panic/error propagation, and race safety against standard Go patterns before considering integration.
-- [ ] Inventory remaining `ungo` APIs by programmer convenience and application fit; prototype a small real use before comparing alternatives.
+- [x] Review `ungo.PipeSequence` as an ergonomic fit for lexing; do not use `ungo.Pipeline` for command execution because its `T -> T` stages cannot express process errors, exit status, cancellation, or I/O ownership.
+- [x] Review `ungo.Specification`, `Exception`, and `ServiceRegistry` as potential conveniences. `Specification` predicate fields lack exported constructors, `Exception` largely wraps Go's existing `(value, error)` flow, and `ServiceRegistry.Add` exits the process on initialization errors while shutdown errors are discarded; none currently improve LoinCloth code safely.
+- [ ] Continue inventorying remaining `ungo` APIs by programmer convenience and application fit; prototype a real use before comparing alternatives.
 - [ ] Record negative results and known limitations as well as adopted improvements; do not adopt a library abstraction solely to maximize usage.
 
 ### Experiment policy
