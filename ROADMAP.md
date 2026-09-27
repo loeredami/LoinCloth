@@ -27,7 +27,8 @@ Security changes should not begin until the existing parser and interactive-inpu
 
 - [x] Use `os.LookupEnv` and a single scope traversal for variable lookup, retaining the existing `ungo.SmallMap` scope overrides. The 64-scope benchmark reduced measured lookup time and allocations; rerun locally with `go test -run '^$' -bench '^BenchmarkGetEnvValueManyScopes$' -benchmem`.
 - [x] Benchmark child environment assembly against both the existing and an optimized built-in Go map, then adopt `ungo.SmallMap` after checking environment equivalence. It is about 13% faster with two fewer allocations than the optimized map in the local benchmark, trading about 6 KB more temporary memory; repeat with `go test -run '^$' -bench '^BenchmarkCommandEnvironment' -benchmem`.
-- [ ] Benchmark any further `ungo.SmallMap` substitutions against Go maps and validate library behavior before adopting them.
+- [x] Benchmark the command registry's `ungo.SmallMap` against a Go map and verify collision, growth, overwrite, and deletion behavior. Reducing the `SmallMap` constructor capacity hint from 256 to 64 cut construction from roughly 18.4 KB/1.26 us to 4.9 KB/0.65 us; a Go map used 0.9 KB/0.68 us. Lookup hits were effectively tied (7.4 ns vs. 7.1 ns), while misses favored the Go map (17.9 ns vs. 6.5 ns). Keep `SmallMap` here to exercise ungo, with a smaller reservation; benchmark any other substitutions independently.
+- [ ] Benchmark any additional `ungo.SmallMap` substitutions against Go maps and validate library behavior before adopting them.
 
 ### Experiment policy
 

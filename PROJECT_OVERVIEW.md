@@ -4,19 +4,20 @@ This file is a compact orientation guide for contributors and coding agents.
 
 ## Project purpose
 
-LoinCloth is a Go-based interactive shell focused on project workspaces, scopes, `.cloth` configuration files, command pipelines, and cross-platform terminal behavior.
+LoinCloth is a Go-based interactive shell focused on project workspaces, scopes, `.cloth` configuration files, command pipelines, and cross-platform terminal behavior. It is also a practical test bed for the `ungo` library: use its data structures and functional helpers where they fit, and benchmark or test their limitations against Go's standard library when behavior or performance matters.
 
-The project currently has two related goals:
+The project currently has three related goals:
 
 1. Maintain the v1.4.1 shell functionality.
 2. Experiment with high-security command authorization and cross-platform administrator handling for v1.4.2.
+3. Exercise `ungo` in a real application, using evidence-driven benchmarks and regression tests to expose library trade-offs.
 
 ## Current Git state
 
-The active development line is:
+The stable experiment base is `v1.4.2`; the active isolated work branch is:
 
 ```text
-v1.4.2-session-scoped-trust
+v1.4.2-ungo-command-registry-benchmark
 ```
 
 The current security branch is based on the following progression:
@@ -48,7 +49,8 @@ main
                                                                                         └── v1.4.2-trust-store-locking
                                                                                             └── v1.4.2-session-scoped-trust
                                                                                                 └── v1.4.2-remove-persistent-trust-prototype
-                                                                                                    └── v1.4.2-default-cloth-session-trust (active)
+                                                                                                    └── v1.4.2-default-cloth-session-trust
+                                                                                                        └── v1.4.2-ungo-command-registry-benchmark (active)
 ```
 
 Branches are intentionally used for potentially breaking security changes. After validation, feature branches are merged into `v1.4.2`, pushed, and then used as the base for the next isolated experiment.
@@ -169,6 +171,7 @@ The following foundations exist:
 - `!last-status` reports the previous non-empty command's status. External-only pipelines use the final stage's status; buffered pipelines stop at the first failed stage.
 - Scope overrides use `ungo.SmallMap`; environment lookup uses `os.LookupEnv` and visits scope overrides in one forward pass, preserving newest-scope precedence. The 64-scope benchmark dropped from about 4.25 us/92 allocations to 0.36 us/6 allocations per lookup on the development machine; rerun the benchmark for local results.
 - Child process environments are assembled with `ungo.SmallMap` while preserving host environment values and applying scope overrides in order. In fair local benchmarks (same parsing and output construction), this took about 6.5 us/88 allocations versus 7.5 us/90 allocations for a built-in map, with about 6 KB more temporary allocation. The legacy path measured about 18 us/345 allocations. Rerun `go test -run '^$' -bench '^BenchmarkCommandEnvironment' -benchmem` to compare locally.
+- The internal command registry uses `ungo.SmallMap`; a registry benchmark found that reducing its constructor capacity hint from 256 to 64 substantially lowers one-time allocation while keeping hit lookup comparable to a built-in map. Misses remain slower than a built-in map, and further substitutions require their own benchmarks.
 - Pasted interactive batches preserve commands across the input buffer boundary; continuation, CRLF, and Ctrl+C cancellation are covered by tests.
 - Nested `!wear` command source is tracked and restored, including loads initiated by the default-configuration source.
 - Command-source tracking.

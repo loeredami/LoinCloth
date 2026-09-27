@@ -13,7 +13,7 @@ import (
 
 type StateCmd func(state *State, args []string) ungo.Optional[error]
 
-var StateCommands = ungo.NewSmallMap[string, StateCmd](256)
+var StateCommands = ungo.NewSmallMap[string, StateCmd](64)
 
 func RegisterCmd(name string, fn StateCmd) {
 	StateCommands.Set(name, fn)
