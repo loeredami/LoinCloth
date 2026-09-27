@@ -23,12 +23,17 @@ Security changes should not begin until the existing parser and interactive-inpu
   - [x] Define and test shell-visible status codes and pipeline exit status behavior: external-only pipelines use the final stage status; buffered pipelines stop and report the first failed stage.
 - [x] Establish a baseline regression run before implementing privilege changes (`go test ./...` passed on the feature branch before implementation).
 
-### Performance and dependency use
+### `ungo` library experiments
 
-- [x] Use `os.LookupEnv` and a single scope traversal for variable lookup, retaining the existing `ungo.SmallMap` scope overrides. The 64-scope benchmark reduced measured lookup time and allocations; rerun locally with `go test -run '^$' -bench '^BenchmarkGetEnvValueManyScopes$' -benchmem`.
-- [x] Benchmark child environment assembly against both the existing and an optimized built-in Go map, then adopt `ungo.SmallMap` after checking environment equivalence. It is about 13% faster with two fewer allocations than the optimized map in the local benchmark, trading about 6 KB more temporary memory; repeat with `go test -run '^$' -bench '^BenchmarkCommandEnvironment' -benchmem`.
-- [x] Benchmark the command registry's `ungo.SmallMap` against a Go map and verify collision, growth, overwrite, and deletion behavior. Reducing the `SmallMap` constructor capacity hint from 256 to 64 cut construction from roughly 18.4 KB/1.26 us to 4.9 KB/0.65 us; a Go map used 0.9 KB/0.68 us. Lookup hits were effectively tied (7.4 ns vs. 7.1 ns), while misses favored the Go map (17.9 ns vs. 6.5 ns). Keep `SmallMap` here to exercise ungo, with a smaller reservation; benchmark any other substitutions independently.
-- [ ] Benchmark any additional `ungo.SmallMap` substitutions against Go maps and validate library behavior before adopting them.
+- [x] Use `os.LookupEnv` and a single scope traversal for variable lookup, retaining `ungo.SmallMap` scope overrides; measure the change with a 64-scope benchmark.
+- [x] Benchmark child-environment assembly with `ungo.SmallMap` against legacy and built-in-map implementations, and verify environment equivalence.
+- [x] Benchmark `ungo.SmallMap` command-registry lookup/construction against Go maps; test collision, growth, overwrite, and deletion behavior. Reduce the constructor capacity hint from 256 to 64 based on the measured allocation/build trade-off.
+- [x] Measure `ungo.LinkedList` workspace indexing and traversal against slices. At 64 workspaces, last-item lookup measured about 32 ns for the list versus 0.44 ns for a slice; full traversal was about 47 ns versus 26 ns. Keep the benchmark as evidence for a future storage decision rather than making an unrelated workspace rewrite now.
+- [ ] Review `ungo.Optional` usage and test that absent-value access cannot silently become a valid-looking zero value in security-sensitive paths.
+- [ ] Evaluate `ungo.Queue` against the current pasted-input buffer for ordered consumption, memory retention, and CRLF/continuation behavior before considering a migration.
+- [ ] Identify a suitable, bounded concurrency experiment for `ungo` channels, workers, or pipelines; compare cancellation, shutdown, and error behavior with standard Go patterns before integration.
+- [ ] Inventory the remaining `ungo` APIs by application fit; prefer experiments that exercise distinct library capabilities rather than repeatedly substituting map implementations.
+- [ ] Record negative results and known limitations as well as adopted improvements; do not adopt a library abstraction solely to maximize usage.
 
 ### Experiment policy
 
