@@ -73,8 +73,10 @@ func TestWriteSecurityStatus(t *testing.T) {
 		"Configuration path: development.cloth",
 		"Configuration source: development .cloth",
 		"Configuration trusted: No",
+		"Configuration gray-listed: Yes",
 		"Session trust rules: 0 (not saved between Loin launches)",
 		"Privilege state: normal",
+		"scopes manage environment overrides",
 	} {
 		if !strings.Contains(result, expected) {
 			t.Fatalf("status missing %q in %q", expected, result)

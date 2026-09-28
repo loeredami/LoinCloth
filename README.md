@@ -6,9 +6,9 @@ You can create multiple workspaces, and scopes which each hold their own aliases
 
 You can create and load in `.cloth` scripts to load scopes and aliases.
 
-## Current version: v1.4.2 experimental
+## Current version: v1.4.2
 
-The `v1.4.2` experimental work builds on the v1.4.1 shell features and begins the security and privilege-handling design.
+The `v1.4.2` work builds on the v1.4.1 shell features and adds source-aware executable trust as a core security feature.
 
 Current features include:
 
@@ -28,9 +28,9 @@ Blank input does nothing. Each pipeline stage requires a command, and a stage ca
 
 External-only pipelines run concurrently with operating-system pipes and use the final stage's exit code; upstream failures do not change the pipeline status. Pipelines with internal commands or buffered redirections run sequentially and stop at the first failed stage. Use `!last-status` to display the previous non-empty command's exit status. See [`SHELL_OPERATORS.md`](SHELL_OPERATORS.md) for details.
 
-Security enforcement and administrator elevation remain experimental and are not complete. Unknown external commands are denied for non-interactive input. Interactive unknown commands can be run once, denied, or trusted for the current Loin session after a separate confirmation. A validated, protected `default.cloth` may seed session trust with explicit `!trust` entries; those rules remain active only in that Loin process and are not saved to a separate trust file. Other `.cloth` files cannot add trust rules and require approval for their commands even when an executable is trusted. `!trust`, `!trust-list`, and `!untrust` manage current-session rules. Workspace commands beginning with `!` cannot be trusted as executables. Selecting a development config with `--cloth` does not grant the default configuration's trust exemption. LoinCloth does not automatically elevate ordinary commands. See [`ROADMAP.md`](ROADMAP.md) for remaining security work.
+Security enforcement is active and still expanding. Unknown external commands are denied for non-interactive input. Interactive unknown commands can be run once, denied, or trusted for the current Loin session after a separate confirmation. A validated, protected `default.cloth` may seed session trust with explicit `!trust` / `!trust-bootstrap` entries; those rules remain active only in that Loin process and are not saved to a separate trust file. Other `.cloth` files cannot add trust rules and require approval for their commands even when an executable is trusted. `!trust`, `!trust-list`, and `!untrust` manage current-session rules. Workspace commands beginning with `!` cannot be trusted as executables and are authorized separately from the external trust list. Selecting a development config with `--cloth` does not grant the default configuration's trust exemption. See [`ROADMAP.md`](ROADMAP.md) for remaining security work.
 
-When Loin creates a new per-user `default.cloth`, it adds session trust rules for a small OS-specific set of read-only informational commands. Unix defaults are `whoami`, `id`, `uname`, `uptime`, and `pwd`; Windows defaults are `whoami.exe`, `hostname.exe`, `tasklist.exe`, `systeminfo.exe`, and `where.exe`. These are basename rules loaded only from a validated, protected `default.cloth`; an existing file is never overwritten or augmented automatically.
+When Loin creates a new per-user `default.cloth`, it adds platform-bootstrap trust rules for a small OS-specific set of read-only informational commands. Unix defaults are `whoami`, `id`, `uname`, `uptime`, and `pwd`; Windows defaults are `whoami.exe`, `hostname.exe`, `tasklist.exe`, `systeminfo.exe`, and `where.exe`. These are basename rules loaded only from a validated, protected `default.cloth` via `!trust-bootstrap`; an existing file is never overwritten or augmented automatically. Scopes manage environment overrides and workspace state, not executable authorization.
 
 See [`SHELL_OPERATORS.md`](SHELL_OPERATORS.md) for interactive input and shell operator details.
 
@@ -71,7 +71,7 @@ The second example uses a Unix executable path and should be denied when it is n
 
 ### Build artifacts
 
-The `builds/` directory contains cross-platform development artifacts for Linux, macOS, and Windows. Release archives are created separately after an experimental version is accepted.
+The `builds/` directory contains cross-platform development artifacts for Linux, macOS, and Windows. Release archives are created separately for published versions.
 
 # MAC OS Support
 Mac os is not supported however binaries will be released, and pull requests for fixes on that platform are welcomed.

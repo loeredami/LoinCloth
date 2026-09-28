@@ -2,9 +2,9 @@
 
 # LoinCloth work road
 
-## v1.4.2 — Experimental 1
+## v1.4.2 — Security work
 
-This roadmap tracks the v1.4.2 security experiment. Phase 0 closes deferred parser and interactive-input work before privilege-related implementation begins.
+This roadmap tracks v1.4.2 security work for the release. Trust-list and source-security behavior are product features under active development, not a disposable experiment. Privilege elevation is out of scope for this update.
 
 ## Phase 0 — Complete deferred v1.4.1 work first
 
@@ -44,25 +44,7 @@ Security changes should not begin until the existing parser and interactive-inpu
 - [ ] Continue inventorying remaining `ungo` APIs by programmer convenience and application fit; prototype a real use before comparing alternatives.
 - [ ] Record negative results and known limitations as well as adopted improvements; do not adopt a library abstraction solely to maximize usage.
 
-### Experiment policy
-
-- [ ] Ordinary commands must never be elevated automatically.
-- [ ] LoinCloth must not request administrator access during startup, prompt rendering, trust approval, or ordinary command execution.
-- [ ] Block switching the shell into superuser/administrator mode through ordinary commands or one-command `sudo` prefixes.
-- [ ] Allow persistent administrator mode only through the direct interactive command `!enter-admin`.
-- [ ] Leave administrator mode only through the direct interactive command `!exit-admin` or shell termination.
-- [ ] Require explicit user input for elevation: `sudo <command>` elevates one command, while `!enter-admin` requests persistent administrator mode.
-- [ ] A process that requests its own privilege mechanism may handle that request itself; LoinCloth must not preemptively request elevation.
-- [ ] `!enter-admin` and `!exit-admin` must be rejected when sourced from any `.cloth` file, including `default.cloth`.
-- [ ] These commands must require direct interactive user input and must not be reachable through `!wear`, pipelines, braces, aliases, or configuration loading.
-- [ ] LoinCloth must never read, store, echo, or log sudo/UAC credentials.
-- [ ] Privilege detection must be informational and must not be treated as authorization.
-- [ ] Always use the configured `sudo-prompt` string while administrator mode is active.
-- [ ] Do not allow the administrator-mode prompt indicator to be overridden by ordinary prompt changes while the mode is active.
-- [ ] Elevated execution must be isolated in a child process.
-- [ ] The parent must preserve child stdout, stderr, exit status, cancellation, and failure details.
-
-### Trust-list and source-security experiment
+### Trust-list and source-security 
 
 The trust list controls whether an external executable may run without explicit elevation. It is an execution-authorization layer, not an administrator grant. Security decisions must also know where a command came from: direct interactive input, `default.cloth`, or another `.cloth` file.
 
@@ -72,14 +54,14 @@ The trust list controls whether an external executable may run without explicit 
 - [x] Deny unknown non-interactive external commands before launch.
 - [x] Require approval for commands sourced from non-default `.cloth` files, even when their executable is trusted.
 - [x] Add an explicit confirmation step before adding session trust from `!trust`.
-- [ ] Define the default policy: deny external executables unless they are trusted or the command is explicitly elevated with `sudo`.
-- [ ] Define a native-command policy separate from workspace commands.
-- [ ] Allow explicitly approved native operating-system commands to run under the native-command policy.
-- [ ] Keep directly typed workspace commands available independently from the external executable trust list.
-- [ ] Never treat workspace commands beginning with `!` as native executables.
-- [ ] Reject `!` workspace commands from `!trust` entries, native-command entries, and external pipeline trust checks.
-- [ ] Allow directly typed workspace commands such as `!wear` under the normal interactive command policy.
-- [ ] Define a separate gray-list for commands originating from non-default `.cloth` files.
+- [x] Define the default policy: deny external executables unless they are trusted.
+- [x] Define a native-command policy separate from workspace commands.
+- [x] Allow explicitly approved native operating-system commands to run under the native-command policy.
+- [x] Keep directly typed workspace commands available independently from the external executable trust list.
+- [x] Never treat workspace commands beginning with `!` as native executables.
+- [x] Reject `!` workspace commands from `!trust` entries, native-command entries, and external pipeline trust checks.
+- [x] Allow directly typed workspace commands such as `!wear` under the normal interactive command policy.
+- [x] Define a separate gray-list for commands originating from non-default `.cloth` files.
 - [ ] Decide which `!` commands remain available in high-security mode and whether they require a separate explicit policy.
   - [ ] Treat `!wear` as a code-loading operation requiring explicit approval; do not treat it as a trusted native command.
   - [ ] Review `!set`, `!reset`, snapshot, workspace, and configuration-mutating commands separately.
@@ -127,10 +109,10 @@ The trust list controls whether an external executable may run without explicit 
 - [ ] Consider storing executable identity with trust entries, such as resolved path plus content hash and optional Windows signature metadata.
 - [ ] Invalidate or re-confirm trust when the trusted executable identity changes.
 - [x] Apply trust checks independently to every external stage in a pipeline.
-- [ ] Apply native-command policy checks independently to every native stage in a pipeline.
+- [x] Apply native-command policy checks independently to every native stage in a pipeline.
 - [x] Keep workspace `!` commands outside the native executable trust model.
 - [ ] Display whether a command was allowed by native policy, user trust, or elevated through `sudo`.
-- [ ] Ensure trust does not imply administrator privileges and administrator status does not automatically create trust.
+- [x] Ensure trust does not imply administrator privileges and administrator status does not automatically create trust.
 
 ### Configuration selection and development mode
 
@@ -153,12 +135,12 @@ The trust list controls whether an external executable may run without explicit 
 - [x] Accept `--cloth` only from process arguments, never from a configuration file.
 - [x] Add a development-mode warning when the selected file is outside the protected default configuration location.
 - [x] Add tests for missing paths, unreadable files, directories, source context, and trust inheritance.
-- [ ] Add platform-specific trust bootstrap entries to `default.cloth` only for native commands required by the active operating system.
-- [ ] Define how platform-specific entries are selected without executing the other platform's commands.
-- [ ] Validate that bootstrap entries refer to expected native executables and cannot introduce arbitrary trust entries.
-- [ ] Keep platform bootstrap trust separate from user-added executable trust and display its source.
-- [ ] Fail closed or warn clearly when required platform bootstrap commands are missing or invalid.
-- [ ] Add startup output showing whether trust entries came from platform bootstrap, user trust, or a gray-listed source.
+- [x] Add platform-specific trust bootstrap entries to `default.cloth` only for native commands required by the active operating system.
+- [x] Define how platform-specific entries are selected without executing the other platform's commands.
+- [x] Validate that bootstrap entries refer to expected native executables and cannot introduce arbitrary trust entries.
+- [x] Keep platform bootstrap trust separate from user-added executable trust and display its source.
+- [x] Fail closed or warn clearly when required platform bootstrap commands are missing or invalid.
+- [x] Add startup output showing whether trust entries came from platform bootstrap, user trust, or a gray-listed source.
 
 ### Security bypass and source controls
 
@@ -178,74 +160,7 @@ The trust list controls whether an external executable may run without explicit 
 - [ ] Add persistence only if a future user-approved design explicitly requests trust to outlive a Loin session.
 - [ ] Consider optional scope-local, temporary trust entries only as an isolated future feature.
 - [x] Do not allow arbitrary `.cloth` files to add trust; the validated, protected `default.cloth` is the only file allowed to seed in-memory session trust.
-- [ ] Document that scopes manage environment overrides and workspace state, not security authorization.
-
-### Proposed user-facing behavior
-
-- [ ] Add direct-input-only `!enter-admin` to enter persistent administrator mode on both Unix and Windows.
-- [ ] Add direct-input-only `!exit-admin` to leave persistent administrator mode on both Unix and Windows.
-- [ ] Make `sudo command arguments` unavailable as a mechanism for switching the persistent shell into administrator mode.
-- [ ] Make `sudo command arguments` a LoinCloth-owned built-in on Unix and Windows.
-- [ ] Resolve the LoinCloth `sudo` built-in before normal executable lookup, intentionally overriding a native `sudo.exe` with the same command name.
-- [ ] Start the elevation request only after parsing, trust checks, and redirection setup are complete and immediately before launching the target command.
-- [ ] Never request sudo/UAC merely because LoinCloth started, because a command is untrusted, or because the current shell is non-administrator.
-- [ ] Provide an explicit escape hatch for invoking the native executable directly when needed, such as an eventual `command`/absolute-path mechanism.
-- [ ] Keep `!elevate -- command arguments` as an optional internal/debug form if it provides useful diagnostics.
-- [ ] Reject ambiguous elevation syntax instead of guessing the user's intent.
-- [ ] Ensure `sudo` is never inserted automatically when an ordinary command fails.
-- [ ] Define clear behavior for `sudo` in pipelines, redirections, and multiline input.
-- [ ] Make elevation behavior clear in errors and status output.
-- [ ] Define how elevated commands interact with pipelines and redirections.
-- [ ] Do not allow an elevated child to silently inherit unsafe shell state or unintended environment overrides.
-
-### Unix implementation — LoinCloth built-in backed by system sudo
-
-- [ ] Resolve the LoinCloth `sudo` built-in before executable lookup.
-- [ ] Delegate the built-in to the system `sudo` executable.
-- [ ] Do not replace or emulate the system's authentication, policy, timestamp, or logging behavior.
-- [ ] Implement `!enter-admin` / `!exit-admin` as the Unix persistent administrator-shell workflow using the system `sudo` mechanism; exiting returns to the ordinary shell.
-
-- [ ] Execute explicit elevated commands through the system `sudo` executable only when the user explicitly enters `sudo`.
-- [ ] Do not invoke sudo proactively to test whether a command needs privileges.
-- [ ] Pass command arguments as an argument vector; do not construct a shell command string.
-- [ ] Attach the controlling terminal for interactive sudo authentication and prompts.
-- [ ] Preserve stdin, stdout, and stderr without intercepting passwords.
-- [ ] Preserve sudo's exit code and signal result.
-- [ ] Handle missing sudo, denied authentication, cancellation, and timeout states clearly.
-- [ ] Avoid adding `-S`, reading password input, or setting password-related environment variables.
-- [ ] Define safe environment behavior for workspace overrides and sensitive variables.
-
-### Windows implementation — LoinCloth built-in backed by UAC
-
-- [ ] Resolve the LoinCloth `sudo` built-in before executable lookup, including when native `sudo.exe` exists.
-- [ ] Use native UAC `runas` as the default Windows elevation backend, immediately before an explicitly requested elevated command.
-- [ ] Implement `!enter-admin` / `!exit-admin` as the Windows persistent administrator-shell workflow using explicit UAC elevation; the elevated process uses its administrator token for normal Windows ACL access checks, without changing ACLs. Keep the commands platform-neutral and return to the ordinary shell on exit.
-- [ ] Treat native Windows `sudo.exe` as an explicit compatibility option, not the default resolution for `sudo`.
-- [ ] Clearly report that the LoinCloth built-in selected the UAC backend.
-- [ ] Never request UAC merely because LoinCloth is running unelevated or because an ordinary command failed.
-- [ ] Detect the current process token's elevation state through Windows access-token APIs.
-- [ ] Distinguish standard user, administrator-not-elevated, elevated administrator, and unknown states.
-- [ ] Launch an explicitly elevated child through the native UAC `runas` mechanism.
-- [ ] Preserve arguments without unsafe `cmd /c` string construction.
-- [ ] Define how the elevated child receives its working directory and environment.
-- [ ] Define stdout and stderr forwarding for UAC-launched processes.
-- [ ] Return the elevated child exit code to LoinCloth where Windows permits it.
-- [ ] Report UAC cancellation separately from command failure.
-- [ ] Do not force a global `requireAdministrator` application manifest for ordinary shell use.
-- [ ] Document that Windows native sudo availability depends on Windows version and system configuration.
-
-### Privilege display and administrator handling
-
-- [ ] Add a platform-neutral privilege state model for prompt and status display.
-- [ ] Track administrator mode separately from one-off elevated child processes.
-- [ ] On entering administrator mode, request elevation before changing the shell mode.
-- [ ] On failed or cancelled elevation, remain in the normal mode and keep the normal prompt.
-- [ ] On exit, restore the normal privilege state and prompt immediately.
-- [ ] Prevent configuration files and workspace commands from changing administrator mode.
-- [ ] Remove Unix-only privilege calls from shared code paths.
-- [ ] Display elevated state without implying that a command will be elevated automatically.
-- [ ] Refresh privilege state when relevant process/workspace state changes.
-- [ ] Treat unavailable privilege information as unknown, not administrator.
+- [x] Document that scopes manage environment overrides and workspace state, not security authorization.
 
 ### Recommended security additions for review
 
@@ -313,22 +228,3 @@ The trust list controls whether an external executable may run without explicit 
 - [ ] Do not treat Wine as proof of Windows administrator membership, access-token elevation, UAC prompts, or `runas` behavior.
 - [ ] Add native Windows CI or manual verification for token classification, UAC approval, UAC cancellation, and elevated child-process behavior.
 - [ ] Document required Wine version, prefix setup, and any unsupported security behaviors.
-
-### Verification
-
-- [ ] Add Unix tests using fake sudo executables and controlled PATH values.
-- [ ] Add Windows tests for token-state classification.
-- [ ] Add Windows manual tests for UAC approval, UAC cancellation, and command failure.
-- [ ] Add tests for stdout, stderr, exit codes, signals, and cancellation.
-- [ ] Add tests proving ordinary commands are not elevated.
-- [ ] Test explicit elevation with pipelines and redirections, or document unsupported combinations.
-- [ ] Update README and release notes after the experiment is accepted.
-
-### Experiment exit criteria
-
-- [ ] Unix explicit elevation works without LoinCloth handling passwords.
-- [ ] Windows explicit UAC elevation works without globally requiring administrator access.
-- [ ] Parent/child I/O and exit behavior is documented and predictable.
-- [ ] Ordinary command behavior is unchanged.
-- [ ] Security review findings are resolved or explicitly documented.
-- [ ] Decide whether the experiment should become the `v1.4.2` release design.

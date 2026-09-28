@@ -116,8 +116,29 @@ func writeSecurityStatus(state *State, w io.Writer) error {
 		trusted = "Yes"
 	}
 	fmt.Fprintf(w, "Configuration trusted: %s\n", trusted)
+	gray := "No"
+	if state.configSource.grayListed() {
+		gray = "Yes"
+	}
+	fmt.Fprintf(w, "Configuration gray-listed: %s\n", gray)
+
+	interactive, bootstrap, defaultCloth := 0, 0, 0
+	for _, entry := range state.trustStore.Entries() {
+		switch entry.Source {
+		case SourceInteractive:
+			interactive++
+		case SourcePlatformBootstrap:
+			bootstrap++
+		case SourceDefaultCloth:
+			defaultCloth++
+		}
+	}
 	fmt.Fprintf(w, "Session trust rules: %d (not saved between Loin launches)\n", len(state.trustStore.Entries()))
+	fmt.Fprintf(w, "  interactive: %d\n", interactive)
+	fmt.Fprintf(w, "  platform-bootstrap: %d\n", bootstrap)
+	fmt.Fprintf(w, "  default.cloth: %d\n", defaultCloth)
 	fmt.Fprintln(w, "Privilege state: normal (explicit elevation is not active)")
+	fmt.Fprintln(w, "Note: scopes manage environment overrides and workspace state, not executable trust.")
 	return nil
 }
 
@@ -131,6 +152,29 @@ func init() {
 		if err := writeSecurityStatus(state, os.Stdout); err != nil {
 			return ungo.Some(err)
 		}
+		return ungo.None[error]()
+	})
+
+	RegisterCmd("!trust-bootstrap", func(state *State, command []string) ungo.Optional[error] {
+		if state.commandSource != SourceDefaultCloth {
+			return ungo.Some(fmt.Errorf("!trust-bootstrap is only allowed from a validated default.cloth"))
+		}
+		if len(command) < 2 {
+			return ungo.Some(fmt.Errorf("expected a platform bootstrap executable basename"))
+		}
+		if strings.HasPrefix(command[1], "!") {
+			return ungo.Some(fmt.Errorf("workspace commands cannot be trusted as executables"))
+		}
+		if !isAllowedPlatformBootstrapTarget(command[1]) {
+			return ungo.Some(fmt.Errorf("platform bootstrap target %q is not in the built-in allowlist", command[1]))
+		}
+		kind, rule := ParseTrustRule(command[1])
+		if kind != TrustBasename {
+			return ungo.Some(fmt.Errorf("platform bootstrap rules must be executable basenames"))
+		}
+		entry := TrustEntry{Rule: rule, Kind: kind, Source: SourcePlatformBootstrap}
+		state.trustStore.Add(entry)
+		fmt.Printf("trusted %s for this session from platform-bootstrap (%s)\n", rule, kind)
 		return ungo.None[error]()
 	})
 
@@ -148,7 +192,7 @@ func init() {
 		}
 		kind, rule := ParseTrustRule(command[1])
 		if fromInteractive {
-			fmt.Fprintf(os.Stderr, "Trust rule %q for this session (kind %d)? [y/N]: ", rule, kind)
+			fmt.Fprintf(os.Stderr, "Trust rule %q for this session (%s)? [y/N]: ", rule, kind)
 			var confirmation string
 			if _, err := fmt.Fscanln(os.Stdin, &confirmation); err != nil || !strings.EqualFold(confirmation, "y") && !strings.EqualFold(confirmation, "yes") {
 				fmt.Fprintln(os.Stderr, "trust entry not added")
@@ -162,7 +206,7 @@ func init() {
 		}
 		entry := TrustEntry{Rule: rule, Kind: kind, Source: source}
 		state.trustStore.Add(entry)
-		fmt.Printf("trusted %s for this session from %s (%d)\n", rule, source, kind)
+		fmt.Printf("trusted %s for this session from %s (%s)\n", rule, source, kind)
 		return ungo.None[error]()
 	})
 
@@ -177,7 +221,7 @@ func init() {
 		}
 		fmt.Println("Session trust rules (active until exit):")
 		for _, entry := range entries {
-			fmt.Printf("%s (%d, source: %s)\n", entry.Rule, entry.Kind, entry.Source)
+			fmt.Printf("%s (%s, source: %s)\n", entry.Rule, entry.Kind, entry.Source)
 		}
 		return ungo.None[error]()
 	})

@@ -8,6 +8,7 @@ const (
 	SourceClothFile
 	SourceDevelopmentCloth
 	SourceNonInteractive
+	SourcePlatformBootstrap
 )
 
 func configurationCommandSource(isDefault, protected bool) CommandSource {
@@ -32,7 +33,13 @@ func (source CommandSource) String() string {
 		return "development .cloth"
 	case SourceNonInteractive:
 		return "non-interactive input"
+	case SourcePlatformBootstrap:
+		return "platform-bootstrap"
 	default:
 		return "unknown"
 	}
+}
+
+func (source CommandSource) grayListed() bool {
+	return source == SourceClothFile || source == SourceDevelopmentCloth
 }

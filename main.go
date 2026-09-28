@@ -1068,6 +1068,9 @@ func ReadConfiguration(state *State) {
 			RunStringFromSource(state, line, source)
 		}
 	}
+	if source == SourceDefaultCloth {
+		warnMissingPlatformBootstrapTargets(os.Stderr)
+	}
 }
 
 func createDefaultClothIfMissing(path string) error {

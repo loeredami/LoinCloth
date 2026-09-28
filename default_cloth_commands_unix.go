@@ -4,10 +4,10 @@ package main
 
 func generatedDefaultClothCommands() []string {
 	return []string{
-		"!trust whoami",
-		"!trust id",
-		"!trust uname",
-		"!trust uptime",
-		"!trust pwd",
+		"!trust-bootstrap whoami",
+		"!trust-bootstrap id",
+		"!trust-bootstrap uname",
+		"!trust-bootstrap uptime",
+		"!trust-bootstrap pwd",
 	}
 }

@@ -14,6 +14,19 @@ const (
 	TrustGlob
 )
 
+func (kind TrustMatchKind) String() string {
+	switch kind {
+	case TrustExactPath:
+		return "exact-path"
+	case TrustBasename:
+		return "basename"
+	case TrustGlob:
+		return "glob"
+	default:
+		return "unknown"
+	}
+}
+
 type TrustEntry struct {
 	Rule   string
 	Kind   TrustMatchKind
