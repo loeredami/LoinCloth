@@ -188,6 +188,7 @@ The following foundations exist:
 - Direct-interactive trust management commands: `!trust`, `!trust-list`, and `!untrust`.
 - Interactive `!trust` requires a separate confirmation; explicit `!trust` directives in validated, protected `default.cloth` seed only the current process. `!trust-list` and `!untrust` inspect and revoke only current-session rules.
 - Choosing “Trust for this session” at an execution prompt requires a second explicit confirmation; declining prevents that command's launch.
+- “Trust for this session” stores the narrowest available rule: an exact resolved executable path (symlink-resolved when possible), never a basename or glob inferred from the launch prompt.
 - `!security-status` reports the active configuration path and source, configuration trust, current-session trust-rule count, and privilege state.
 - Explicitly selected `.cloth` files are validated as readable regular files and produce a development-mode warning when outside the protected default location.
 - Launch-time checks for standalone external commands and external stages in pipelines.

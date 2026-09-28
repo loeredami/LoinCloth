@@ -51,8 +51,18 @@ func TestTrustPromptTrustsExactPathForCurrentSession(t *testing.T) {
 		t.Fatalf("session trust approval failed: %s", output.String())
 	}
 	writer.Flush()
+	entries := state.trustStore.Entries()
+	if len(entries) != 1 || entries[0].Kind != TrustExactPath {
+		t.Fatalf("session trust did not store an exact-path rule: %#v", entries)
+	}
+	if entries[0].Rule != resolvedTrustPath("/usr/bin/example") {
+		t.Fatalf("session trust rule = %q, want resolved exact path %q", entries[0].Rule, resolvedTrustPath("/usr/bin/example"))
+	}
 	if !state.trustStore.Allows("/usr/bin/example") {
 		t.Fatal("approved executable was not trusted for this session")
+	}
+	if state.trustStore.Allows("/usr/local/bin/example") {
+		t.Fatal("exact-path session trust authorized a different path with the same basename")
 	}
 	state.commandSource = SourceInteractive
 	state.interactiveInput = true
@@ -64,6 +74,9 @@ func TestTrustPromptTrustsExactPathForCurrentSession(t *testing.T) {
 	}
 	if !strings.Contains(output.String(), "Trust for this session") {
 		t.Fatalf("prompt did not say trust is session-scoped: %q", output.String())
+	}
+	if !strings.Contains(output.String(), "Trust exact path") {
+		t.Fatalf("prompt did not describe the narrow exact-path rule: %q", output.String())
 	}
 	nextSession := &State{}
 	if nextSession.trustStore.Allows("/usr/bin/example") {

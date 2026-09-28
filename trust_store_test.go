@@ -1,6 +1,10 @@
 package main
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 func TestTrustStoreMatchesExactPath(t *testing.T) {
 	kind, rule := ParseTrustRule("/usr/bin/example")
@@ -92,5 +96,57 @@ func TestTrustStoreEntriesReturnsCopy(t *testing.T) {
 	entries[0].Rule = "modified"
 	if !store.Allows("/usr/bin/example") {
 		t.Fatal("mutating returned entries changed session trust")
+	}
+}
+
+func TestSessionTrustEntryPrefersResolvedExactPath(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "real-tool")
+	if err := os.WriteFile(target, []byte("#!/bin/sh\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, "alias-tool")
+	if err := os.Symlink(target, link); err != nil {
+		t.Fatalf("create symlink: %v", err)
+	}
+
+	entry := sessionTrustEntry(link, SourceInteractive)
+	if entry.Kind != TrustExactPath {
+		t.Fatalf("kind = %v, want exact path", entry.Kind)
+	}
+	want := resolvedTrustPath(link)
+	if entry.Rule != want {
+		t.Fatalf("rule = %q, want resolved path %q", entry.Rule, want)
+	}
+	if entry.Rule == normalizeExecutablePath(link) && want != normalizeExecutablePath(link) {
+		t.Fatal("session trust kept the symlink path instead of resolving it")
+	}
+
+	var store TrustStore
+	store.Add(entry)
+	if !store.Allows(target) {
+		t.Fatal("resolved target was not authorized by session trust")
+	}
+	if !store.Allows(link) {
+		t.Fatal("symlink launch path was not authorized by resolved session trust")
+	}
+	if store.Allows(filepath.Join(dir, "other-tool")) {
+		t.Fatal("session trust authorized an unrelated path")
+	}
+}
+
+func TestParseTrustRuleRequiresExplicitGlobAndRejectsSubstring(t *testing.T) {
+	kind, rule := ParseTrustRule("exam")
+	if kind != TrustBasename || rule != "exam" {
+		t.Fatalf("ParseTrustRule(exam) = %v %q", kind, rule)
+	}
+	entry := TrustEntry{Rule: rule, Kind: kind, Source: SourceInteractive}
+	if entry.Matches("/usr/bin/example") {
+		t.Fatal("basename rule implicitly matched a substring")
+	}
+
+	kind, rule = ParseTrustRule("exam*")
+	if kind != TrustGlob || rule != "exam*" {
+		t.Fatalf("ParseTrustRule(exam*) = %v %q", kind, rule)
 	}
 }

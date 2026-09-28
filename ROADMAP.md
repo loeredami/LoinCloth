@@ -107,28 +107,28 @@ The trust list controls whether an external executable may run without explicit 
   3. `Do not run` — deny the invocation.
 - [x] Prompt once per external command stage from a gray-listed source.
 - [x] Apply the same approval decision independently to each external stage in a pipeline.
-- [ ] Never prompt for a password or treat this approval as administrator authorization.
+- [x] Never prompt for a password or treat this approval as administrator authorization.
 - [x] Default to `Do not run` when no interactive terminal is available.
 - [x] Treat commands loaded from `default.cloth` as exempt from the external trusted-list check, while still applying parsing and safety checks.
 - [x] Allow validated, protected `default.cloth` `!trust` directives to seed the current session's in-memory trust list; do not persist them outside the session.
 - [ ] Ensure only `default.cloth` may use `!toggle-security` during configuration loading.
 - [ ] Define how security state is restored after a `default.cloth` or gray-listed file finishes loading.
-- [ ] Define matching semantics before implementation:
-  - [ ] Exact normalized executable path.
-  - [ ] Executable basename, such as `explorer.exe` or `explorer`.
-  - [ ] Explicit wildcard/glob patterns only when visibly requested.
-  - [ ] No implicit substring matching.
+- [x] Define matching semantics before implementation:
+  - [x] Exact normalized executable path.
+  - [x] Executable basename, such as `explorer.exe` or `explorer`.
+  - [x] Explicit wildcard/glob patterns only when visibly requested.
+  - [x] No implicit substring matching.
 - [x] Add an isolated trust-matching prototype with exact-path, basename, and explicit-glob rules.
 - [x] Add regression tests for cross-platform basename matching and duplicate trust entries.
 - [x] Require explicit confirmation before adding an executable rule to the current session's trust list; declining denies the command.
 - [x] Provide direct-interactive commands to inspect and revoke current-session trust entries.
-- [ ] Make `Trust for this session` use the narrowest possible rule, preferring resolved path and executable identity over a broad basename or wildcard.
+- [x] Make `Trust for this session` use the narrowest possible rule, preferring resolved path and executable identity over a broad basename or wildcard.
 - [ ] Define behavior when a trusted executable changes, including replacement, symlink, or Windows reparse-point scenarios.
 - [ ] Consider storing executable identity with trust entries, such as resolved path plus content hash and optional Windows signature metadata.
 - [ ] Invalidate or re-confirm trust when the trusted executable identity changes.
-- [ ] Apply trust checks independently to every external stage in a pipeline.
+- [x] Apply trust checks independently to every external stage in a pipeline.
 - [ ] Apply native-command policy checks independently to every native stage in a pipeline.
-- [ ] Keep workspace `!` commands outside the native executable trust model.
+- [x] Keep workspace `!` commands outside the native executable trust model.
 - [ ] Display whether a command was allowed by native policy, user trust, or elevated through `sudo`.
 - [ ] Ensure trust does not imply administrator privileges and administrator status does not automatically create trust.
 

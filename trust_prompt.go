@@ -50,8 +50,8 @@ func promptExecutableTrust(state *State, executablePath string, output *bufio.Wr
 	case "1":
 		return true
 	case "2":
-		kind, rule := ParseTrustRule(executablePath)
-		fmt.Fprintf(output, "Trust rule %q for this session? [y/N]: ", rule)
+		entry := sessionTrustEntry(executablePath, SourceInteractive)
+		fmt.Fprintf(output, "Trust exact path %q for this session? [y/N]: ", entry.Rule)
 		output.Flush()
 
 		var confirmation string
@@ -62,7 +62,6 @@ func promptExecutableTrust(state *State, executablePath string, output *bufio.Wr
 			return false
 		}
 
-		entry := TrustEntry{Rule: rule, Kind: kind, Source: SourceInteractive}
 		state.trustStore.Add(entry)
 		return true
 	default:
