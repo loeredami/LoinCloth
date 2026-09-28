@@ -14,6 +14,19 @@ const (
 	TrustGlob
 )
 
+func (kind TrustMatchKind) String() string {
+	switch kind {
+	case TrustExactPath:
+		return "exact-path"
+	case TrustBasename:
+		return "basename"
+	case TrustGlob:
+		return "glob"
+	default:
+		return "unknown"
+	}
+}
+
 type TrustEntry struct {
 	Rule   string
 	Kind   TrustMatchKind
@@ -48,6 +61,27 @@ func normalizeExecutablePath(path string) string {
 	return filepath.Clean(path)
 }
 
+// resolvedTrustPath returns the narrowest path identity available for a launch
+// target: an absolute cleaned path, preferring symlink resolution when possible.
+func resolvedTrustPath(path string) string {
+	path = normalizeExecutablePath(path)
+	if resolved, err := filepath.EvalSymlinks(path); err == nil && resolved != "" {
+		return normalizeExecutablePath(resolved)
+	}
+	return path
+}
+
+// sessionTrustEntry builds the narrowest rule for "Trust for this session":
+// an exact resolved path. Basename and glob rules are only created by explicit
+// !trust input, never by the execution approval prompt.
+func sessionTrustEntry(executablePath string, source CommandSource) TrustEntry {
+	return TrustEntry{
+		Rule:   resolvedTrustPath(executablePath),
+		Kind:   TrustExactPath,
+		Source: source,
+	}
+}
+
 func executableBaseName(path string) string {
 	path = strings.TrimRight(path, "/\\")
 	if separator := strings.LastIndexAny(path, "/\\"); separator >= 0 {
@@ -63,7 +97,7 @@ func (entry TrustEntry) Matches(executablePath string) bool {
 
 	switch entry.Kind {
 	case TrustExactPath:
-		return normalizeExecutablePath(entry.Rule) == normalizeExecutablePath(executablePath)
+		return resolvedTrustPath(entry.Rule) == resolvedTrustPath(executablePath)
 	case TrustBasename:
 		return executableBaseName(executablePath) == entry.Rule
 	case TrustGlob:

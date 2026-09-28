@@ -9,12 +9,12 @@ LoinCloth is a Go-based interactive shell focused on project workspaces, scopes,
 The project currently has three related goals:
 
 1. Maintain the v1.4.1 shell functionality.
-2. Experiment with high-security command authorization and cross-platform administrator handling for v1.4.2.
+2. Ship source-aware executable trust and related security controls for v1.4.2.
 3. Explore `ungo` in a real application, prioritizing programmer convenience and useful composition, while testing behavior and performance when they affect adoption.
 
 ## Current Git state
 
-The stable experiment base and current integration branch is:
+The stable integration branch is:
 
 ```text
 v1.4.2
@@ -188,7 +188,11 @@ The following foundations exist:
 - Direct-interactive trust management commands: `!trust`, `!trust-list`, and `!untrust`.
 - Interactive `!trust` requires a separate confirmation; explicit `!trust` directives in validated, protected `default.cloth` seed only the current process. `!trust-list` and `!untrust` inspect and revoke only current-session rules.
 - Choosing “Trust for this session” at an execution prompt requires a second explicit confirmation; declining prevents that command's launch.
-- `!security-status` reports the active configuration path and source, configuration trust, current-session trust-rule count, and privilege state.
+- “Trust for this session” stores the narrowest available rule: an exact resolved executable path (symlink-resolved when possible), never a basename or glob inferred from the launch prompt.
+- Platform OS trust defaults are seeded with ordinary `!trust` lines in a validated `default.cloth` and remain active for the whole session; they are shown separately from interactive `!trust` rules in `!security-status` / `!trust-list`.
+- `!security-status` reports the active configuration path and source, configuration trust, gray-list status, current-session trust-rule counts by origin, and privilege state.
+- Workspace `!` commands and shell built-ins are classified separately from external executables and do not use the executable trust list.
+- Scopes manage environment overrides and workspace state, not executable authorization.
 - Explicitly selected `.cloth` files are validated as readable regular files and produce a development-mode warning when outside the protected default location.
 - Launch-time checks for standalone external commands and external stages in pipelines.
 - Interactive approval choices: Run Once, Trust for this session, or Do not run. Prompts are written to stderr so they do not become redirected command output.
@@ -209,7 +213,7 @@ The following are not complete:
 - Windows UAC `runas` handling.
 - Protected `default.cloth` process/file-access monitoring.
 
-Do not describe the current prototype as a complete security boundary. Native-command policy, source-context edge cases, native Windows ACL validation, and privilege elevation are still incomplete.
+Do not describe the current trust system as a complete security boundary. Native Windows ACL verification, high-security workspace-command policy, protected-file monitoring, and remaining trust-identity hardening are still incomplete.
 
 ## Security design principles
 

@@ -36,3 +36,7 @@ func (source CommandSource) String() string {
 		return "unknown"
 	}
 }
+
+func (source CommandSource) grayListed() bool {
+	return source == SourceClothFile || source == SourceDevelopmentCloth
+}
