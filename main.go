@@ -1069,7 +1069,7 @@ func ReadConfiguration(state *State) {
 		}
 	}
 	if source == SourceDefaultCloth {
-		warnMissingPlatformBootstrapTargets(os.Stderr)
+		warnMissingDefaultClothTrustTargets(os.Stderr)
 	}
 }
 

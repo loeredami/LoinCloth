@@ -189,7 +189,7 @@ The following foundations exist:
 - Interactive `!trust` requires a separate confirmation; explicit `!trust` directives in validated, protected `default.cloth` seed only the current process. `!trust-list` and `!untrust` inspect and revoke only current-session rules.
 - Choosing “Trust for this session” at an execution prompt requires a second explicit confirmation; declining prevents that command's launch.
 - “Trust for this session” stores the narrowest available rule: an exact resolved executable path (symlink-resolved when possible), never a basename or glob inferred from the launch prompt.
-- Platform bootstrap trust is seeded with `!trust-bootstrap` from a validated `default.cloth` only, kept separate from interactive `!trust` rules, and shown in `!security-status` / `!trust-list`.
+- Platform OS trust defaults are seeded with ordinary `!trust` lines in a validated `default.cloth` and remain active for the whole session; they are shown separately from interactive `!trust` rules in `!security-status` / `!trust-list`.
 - `!security-status` reports the active configuration path and source, configuration trust, gray-list status, current-session trust-rule counts by origin, and privilege state.
 - Workspace `!` commands and shell built-ins are classified separately from external executables and do not use the executable trust list.
 - Scopes manage environment overrides and workspace state, not executable authorization.

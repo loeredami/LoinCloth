@@ -45,8 +45,8 @@ func TestCreateDefaultClothIfMissingGeneratesPlatformCommands(t *testing.T) {
 		t.Fatalf("loaded %d default trust entries, want %d; output %q", len(entries), len(want), output.String())
 	}
 	for _, entry := range entries {
-		if entry.Source != SourcePlatformBootstrap {
-			t.Errorf("trust entry %q source = %s, want platform-bootstrap", entry.Rule, entry.Source)
+		if entry.Source != SourceDefaultCloth {
+			t.Errorf("trust entry %q source = %s, want default.cloth", entry.Rule, entry.Source)
 		}
 	}
 }

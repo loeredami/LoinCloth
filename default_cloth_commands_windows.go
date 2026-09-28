@@ -4,10 +4,10 @@ package main
 
 func generatedDefaultClothCommands() []string {
 	return []string{
-		"!trust-bootstrap whoami.exe",
-		"!trust-bootstrap hostname.exe",
-		"!trust-bootstrap tasklist.exe",
-		"!trust-bootstrap systeminfo.exe",
-		"!trust-bootstrap where.exe",
+		"!trust whoami.exe",
+		"!trust hostname.exe",
+		"!trust tasklist.exe",
+		"!trust systeminfo.exe",
+		"!trust where.exe",
 	}
 }
