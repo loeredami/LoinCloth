@@ -157,8 +157,8 @@ The trust list controls whether an external executable may run without explicit 
 - [x] Keep executable trust separate from workspace scopes and session-local by default.
 - [x] Remove the unused persistent trust-store prototype so approvals cannot accidentally be shared across Loin launches.
 - [x] Keep `!trust`, trust inspection, and revocation session-local.
-- [ ] Add persistence only if a future user-approved design explicitly requests trust to outlive a Loin session.
-- [ ] Consider optional scope-local, temporary trust entries only as an isolated future feature.
+- [x] Never persist executable trust across Loin launches; session approvals and `default.cloth` seeds exist only in the current process memory and are discarded on exit.
+- [ ] Consider optional scope-local, temporary trust entries only as an isolated future feature (still must not outlive the Loin process).
 - [x] Do not allow arbitrary `.cloth` files to add trust; the validated, protected `default.cloth` is the only file allowed to seed in-memory session trust.
 - [x] Document that scopes manage environment overrides and workspace state, not security authorization.
 

@@ -183,7 +183,7 @@ The following foundations exist:
 - Command-source tracking.
 - Repository-local development configuration selection with `--cloth`.
 - Trust-rule matching for exact paths, basenames, and explicit globs.
-- Runtime trust rules exist only in memory for the current Loin process and are discarded on exit. A validated, protected `default.cloth` can explicitly seed that session's rules; unprotected cloth files cannot.
+- Runtime trust rules exist only in memory for the current Loin process and are discarded on exit by design; there is no persistent trust store across launches. A validated, protected `default.cloth` can explicitly seed that session's rules; unprotected cloth files cannot.
 - Workspace commands beginning with `!` are rejected as executable trust rules.
 - Direct-interactive trust management commands: `!trust`, `!trust-list`, and `!untrust`.
 - Interactive `!trust` requires a separate confirmation; explicit `!trust` directives in validated, protected `default.cloth` seed only the current process. `!trust-list` and `!untrust` inspect and revoke only current-session rules.
