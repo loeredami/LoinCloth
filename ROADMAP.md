@@ -66,9 +66,6 @@ The trust list controls whether an external executable may run without explicit 
   - [ ] Treat `!wear` as a code-loading operation requiring explicit approval; do not treat it as a trusted native command.
   - [ ] Review `!set`, `!reset`, snapshot, workspace, and configuration-mutating commands separately.
   - [ ] Define whether high-security mode disables workspace command execution by default.
-- [ ] Define `sudo command` as a one-invocation elevation request that does not permanently trust the executable.
-- [ ] Ensure trust approval and administrator elevation remain separate decisions: `Run Once` must not trigger sudo, and a denied trust check must not silently retry with sudo.
-- [ ] If an ordinary child exits with a permission error, report it without automatically retrying or requesting elevation.
 - [x] Add direct-interactive trust management commands:
   ```text
   !trust explorer.exe
