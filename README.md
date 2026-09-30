@@ -6,7 +6,7 @@ You can create multiple workspaces, and scopes which each hold their own aliases
 
 You can create and load in `.cloth` scripts to load scopes and aliases.
 
-## Current version: v1.4.2
+## Current version: v1.4.2 pre-release
 
 The `v1.4.2` work builds on the v1.4.1 shell features and adds source-aware executable trust as a core security feature.
 
