@@ -28,7 +28,12 @@ for target in "${targets[@]}"; do
 
     echo "Building for $OS ($ARCH)..."
 
-    env GOOS="$OS" GOARCH="$ARCH" go build -o "${BUILD_DIR}/${OUTPUT_NAME}" .
+    EXTRA_FLAGS=()
+    if [ "$OS" == "linux" ]; then
+        EXTRA_FLAGS=(-ldflags="-s -w")
+    fi
+
+    env GOOS="$OS" GOARCH="$ARCH" go build "${EXTRA_FLAGS[@]}" -o "${BUILD_DIR}/${OUTPUT_NAME}" .
 
     if [ $? -ne 0 ]; then
         echo "Error: Build failed for $target"

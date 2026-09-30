@@ -8,32 +8,6 @@ You can create and load in `.cloth` scripts to load scopes and aliases.
 
 ## Current version: v1.4.2 pre-release
 
-The `v1.4.2` work builds on the v1.4.1 shell features and adds source-aware executable trust as a core security feature.
-
-Current features include:
-
-- Pasted multi-command input without dropping lines after the first newline.
-- Fish-style multiline input using a trailing `\\`.
-- Pipelines with `|`.
-- Output redirection with `>` and `>>`.
-- Input redirection with `<`.
-- Mixed pipelines containing external commands and supported internal commands.
-- Nested brace expressions that use the pipeline parser.
-- Unicode-aware prompt redraw behavior for wide characters and emoji.
-- Source tracking for interactive input, `default.cloth`, selected development cloth files, and nested `!wear` loads.
-- Session-scoped executable trust rules with interactive approval, inspection, and revocation.
-- A development configuration override through `--cloth`.
-
-Blank input does nothing. Each pipeline stage requires a command, and a stage can have at most one input and one output redirection. Repeated or malformed operators and empty command names are rejected.
-
-External-only pipelines run concurrently with operating-system pipes and use the final stage's exit code; upstream failures do not change the pipeline status. Pipelines with internal commands or buffered redirections run sequentially and stop at the first failed stage. Use `!last-status` to display the previous non-empty command's exit status. See [`SHELL_OPERATORS.md`](SHELL_OPERATORS.md) for details.
-
-Security enforcement is active and still expanding. Unknown external commands are denied for non-interactive input. Interactive unknown commands can be run once, denied, or trusted for the current Loin session after a separate confirmation. Executable trust never persists across Loin launches: approvals and `default.cloth` `!trust` seeds live only in process memory and are discarded on exit. A validated, protected `default.cloth` may seed that in-memory list for the current process only. Other `.cloth` files cannot add trust rules and require approval for their commands even when an executable is trusted. `!trust`, `!trust-list`, and `!untrust` manage current-session rules. Workspace commands beginning with `!` cannot be trusted as executables and are authorized separately from the external trust list. Selecting a development config with `--cloth` does not grant the default configuration's trust exemption. See [`ROADMAP.md`](ROADMAP.md) for remaining security work.
-
-When Loin creates a new per-user `default.cloth`, it adds `!trust` rules for a small OS-specific set of read-only informational commands. Unix defaults are `whoami`, `id`, `uname`, `uptime`, and `pwd`; Windows defaults are `whoami.exe`, `hostname.exe`, `tasklist.exe`, `systeminfo.exe`, and `where.exe`. These basename rules are loaded from a validated, protected `default.cloth` into the current session only; an existing file is never overwritten or augmented automatically. Scopes manage environment overrides and workspace state, not executable authorization.
-
-See [`SHELL_OPERATORS.md`](SHELL_OPERATORS.md) for interactive input and shell operator details.
-
 ### Development environment
 
 Build and launch LoinCloth with the repository development configuration:
@@ -52,45 +26,10 @@ go run . --cloth path/to/development.cloth
 
 An explicitly selected file must be a readable regular file. LoinCloth warns when it is outside the protected default configuration location; it is treated as a development source, not as trusted `default.cloth`.
 
-### Testing
-
-
-
-Run the Go test suite and build the supported platform binaries with:
-
-```sh
-go test ./...
-go build .
-./build_all.sh
-
-```
-
-To smoke-test status output and non-interactive command handling from a regular terminal:
-
-```sh
-printf '%s\n' '!security-status' 'exit' | go run . --cloth default.cloth
-printf '%s\n' '/usr/bin/printf should-be-blocked' 'exit' | go run . --cloth default.cloth
-
-```
-
-The second example uses a Unix executable path and should be denied when it is not trusted. The repository `default.cloth` is a development config, so startup warns about its source.
-
-### Build artifacts
-
-
-
-The `builds/` directory contains cross-platform development artifacts for Linux, macOS, and Windows. Release archives are created separately for published versions.
-
 # MAC OS Support
-
-
-
 Mac os is not supported however binaries will be released, and pull requests for fixes on that platform are welcomed.
 
 # Workspaces
-
-
-
 ```sh
 ~/Projects/2026/March/LoinCloth (main) ~811.145µs
 » !new w
@@ -291,11 +230,7 @@ When LoinCloth initializes, it can pre-seed trusted binaries into memory from a 
 
 # Other
 
-
-
 ## Comments
-
-
 
 Comments start and end with `##`
 
@@ -331,9 +266,6 @@ No problem, just throw it in some `{}`!
 This example is useless, but it gets the point across.
 
 ## Snapshots
-
-
-
 Like a specific scope or workspace configuration?
 Write it to a file!
 
@@ -344,9 +276,6 @@ Write it to a file!
 ```
 
 ## Workspace utility
-
-
-
 If you need another workspace with the configuration of another workspace use the clone command.
 
 ```sh
@@ -400,8 +329,8 @@ Here are some commands you can use:
 other strings:
 
 * `sudo-prompt`
-
 * `scope-sign`
+* `security-off`
 
 
 `!color <color field> <int> [<int> ...]` - Replaces a color with one or more ANSI color codes.
@@ -419,50 +348,29 @@ The second example sets the prompt to bold (`1`), white foreground (`37`), and b
 color fields:
 
 * `input`
-
 * `err`
-
 * `ls-dir`
-
 * `ls-sym-link`
-
 * `ls-exec`
-
 * `sudo-prompt`
-
 * `prompt`
-
 * `idx`
-
 * `cur-ws`
-
 * `cur-dir`
-
 * `cur-dir-indic`
-
 * `git-branch`
-
 * `time`
-
 * `time-prefix`
-
 * `scope`
-
 * `path`
-
 * `input-string`
-
 * `input-num`
-
 * `input-path`
-
 * `input-var`
-
 * `input-brace`
-
 * `ghost`
-
 * `workspace`
+* `security-off`
 
 
 `!disable-colors` - Disables color rendering, good for very old machines.
