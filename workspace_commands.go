@@ -492,6 +492,9 @@ func init() {
 		case "prompt":
 			state.config.PromptCol = color.String()
 			return ungo.None[error]()
+		case "security-off":
+			state.config.SecurityOffCol = color.String()
+			return ungo.None[error]()
 		case "idx":
 			state.config.IdxCol = color.String()
 			return ungo.None[error]()
@@ -561,6 +564,9 @@ func init() {
 			return ungo.None[error]()
 		case "scope-sign":
 			state.config.ScopeSign = command[2]
+			return ungo.None[error]()
+		case "security-off":
+			state.config.SecurityOffSign = command[2]
 			return ungo.None[error]()
 		}
 

@@ -401,6 +401,10 @@ func renderPromptInfo(state *State, time_taken ungo.Optional[time.Duration]) str
 		})
 	})
 
+	if !state.useTrustedList {
+		fmt.Printf("%s%s%s", state.GetColor(state.config.SecurityOffCol), state.config.SecurityOffSign, state.Reset())
+	}
+
 	promptStr := fmt.Sprintf("%s%s ", in_sign, state.GetColor(state.config.InputCol))
 	fmt.Print(promptStr)
 	return promptStr

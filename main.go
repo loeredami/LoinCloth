@@ -707,7 +707,7 @@ func runPipeline(state *State, commands []PipelineCommand, output io.Writer) int
 				fmt.Fprintf(output, "%sCommand not found: %s%s\n", state.GetColor(state.config.ErrorCol), command.args[0], state.Reset())
 				return 127
 			}
-			if !state.useTrustedList {
+			if state.useTrustedList {
 				if !authorizeExecutable(state, path, output) {
 					return 126
 				}
@@ -927,7 +927,7 @@ func Run(state *State, cmdArgs []string, w io.Writer) int {
 }
 
 func runWithStdin(state *State, cmdArgs []string, w io.Writer, stdin io.Reader) int {
-	return runWithStdinPolicy(state, cmdArgs, w, stdin, true)
+	return runWithStdinPolicy(state, cmdArgs, w, stdin, state.useTrustedList)
 }
 
 func runWithStdinApproved(state *State, cmdArgs []string, w io.Writer, stdin io.Reader) int {

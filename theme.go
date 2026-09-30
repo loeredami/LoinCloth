@@ -81,7 +81,7 @@ func DefaultConfiguration() Configuration {
 		SudoPrompt:      "#!",
 		Prompt:          "»",
 		ScopeSign:       ":",
-		SecurityOffSign: "<!>",
+		SecurityOffSign: "[##]",
 		ColorMode:       true,
 	}
 }
