@@ -40,17 +40,21 @@ Build and launch LoinCloth with the repository development configuration:
 
 ```sh
 ./run_dev.sh
+
 ```
 
 This creates a local `loin-dev` executable and loads `./default.cloth`. To select another development configuration directly:
 
 ```sh
 go run . --cloth path/to/development.cloth
+
 ```
 
 An explicitly selected file must be a readable regular file. LoinCloth warns when it is outside the protected default configuration location; it is treated as a development source, not as trusted `default.cloth`.
 
 ### Testing
+
+
 
 Run the Go test suite and build the supported platform binaries with:
 
@@ -58,6 +62,7 @@ Run the Go test suite and build the supported platform binaries with:
 go test ./...
 go build .
 ./build_all.sh
+
 ```
 
 To smoke-test status output and non-interactive command handling from a regular terminal:
@@ -65,18 +70,26 @@ To smoke-test status output and non-interactive command handling from a regular 
 ```sh
 printf '%s\n' '!security-status' 'exit' | go run . --cloth default.cloth
 printf '%s\n' '/usr/bin/printf should-be-blocked' 'exit' | go run . --cloth default.cloth
+
 ```
 
 The second example uses a Unix executable path and should be denied when it is not trusted. The repository `default.cloth` is a development config, so startup warns about its source.
 
 ### Build artifacts
 
+
+
 The `builds/` directory contains cross-platform development artifacts for Linux, macOS, and Windows. Release archives are created separately for published versions.
 
 # MAC OS Support
+
+
+
 Mac os is not supported however binaries will be released, and pull requests for fixes on that platform are welcomed.
 
 # Workspaces
+
+
 
 ```sh
 ~/Projects/2026/March/LoinCloth (main) ~811.145µs
@@ -84,6 +97,7 @@ Mac os is not supported however binaries will be released, and pull requests for
 [0] ~/Projects/2026/March/LoinCloth [*] (main) ~4.73µs
 [1] ~/Projects/2026/March/LoinCloth [H]
 »
+
 ```
 
 `!new w` creates a new space.
@@ -106,6 +120,7 @@ Use `!switch <index>` to switch to the new workspace.
 [0] ~/Projects/2026/March/LoinCloth [H]
 [1] ~/Projects/2026/March/LoinCloth [*] (main) ~10.71µs
 »
+
 ```
 
 You can see, we are now in workspace `[1]`. Creating a workspace leaves the current workspace unchanged.
@@ -113,11 +128,12 @@ We will now see the `[H]` disappear in index `[0]` once we change directories.
 
 ```sh
 [0] ~/Projects/2026/March/LoinCloth [H]
-[1] ~/Projects/2026/March/LoinCloth [*] (main) ~10.71µs
+[1] ~/Projects/2026/March [*] ~27.02µs
 » cd ..
 [0] ~/Projects/2026/March/LoinCloth
 [1] ~/Projects/2026/March [*] ~27.02µs
 »
+
 ```
 
 We also have a typical ls command, which overrides your os ls, this was added because windows doesn't have one, and I had to make sure it was working for cross compatibility.
@@ -135,6 +151,7 @@ test.cloth          workspace_commands.go
 [0] ~/Projects/2026/March/LoinCloth [H]
 [1] ~/Projects/2026/March/LoinCloth [*] (main) ~105.981µs
 »
+
 ```
 
 Anyways, we no longer need workspace `[0]`, so let's use the `!close` command to close it.
@@ -145,9 +162,13 @@ Anyways, we no longer need workspace `[0]`, so let's use the `!close` command to
 » !close 0
 ~/Projects/2026/March/LoinCloth (main) ~6.32µs
 »
+
 ```
 
 # Scopes
+
+
+
 Scopes are used for saving temporary environment variables.
 
 To start let's create a scope called "builder" like so:
@@ -157,6 +178,7 @@ To start let's create a scope called "builder" like so:
 » !new s builder
 ~/Projects/2026/March/LoinCloth (main) ~6.25µs
 :builder»
+
 ```
 
 The prompt will now prefix with the series of scopes in order of which it overrides your env variables.
@@ -172,6 +194,7 @@ You can also stack scopes, do not worry about your scope names disappearing once
 » !new s r
 ~/Projects/2026/March/LoinCloth (main) ~10.22µs
 :builder:r»
+
 ```
 
 Now, if you have any variables declared in r, which also exists in builder, the varaibles in r will have priority over builder.
@@ -187,6 +210,7 @@ You can now use the `!set <key> <value>` command like so:
 » $build
 ~/Projects/2026/March/LoinCloth (main) ~33.449099ms
 :builder:r»
+
 ```
 
 Note that the variables you declare only exist in each scope, once you drop them like in the example below, they will no longer exist. Variables, wether they are commands or not will be referenced using a $.
@@ -201,57 +225,96 @@ Note that the variables you declare only exist in each scope, once you drop them
 exec: "build": executable file not found in $PATH
 ~/Projects/2026/March/LoinCloth (main) ~140.141µs
 :builder»
+
 ```
 
 If you want each scope to always have a specific set of variables, consider writing a cloth file.
 
 test.cloth:
+
 ```sh
 !new s go-builder
 !set run "go run ."
 !set buid "go build ."
 !set GOPROXY direct
 !set update "go get -u"
+
 ```
 
 Now you can wear the cloth:
+
 ```sh
 ~/Projects/2026/March/LoinCloth (main) ~103.57µs
 » !wear test.cloth
 ~/Projects/2026/March/LoinCloth (main) ~57.05µs
 :go-builder»
+
 ```
 
 and run it's commands:
 
 ```sh
 ~/Projects/2026/March/LoinCloth (main) ~57.05µs
-» $update github.com/loeredami/ungo@latest
+» $update [github.com/loeredami/ungo@latest](https://github.com/loeredami/ungo@latest)
 ~/Projects/2026/March/LoinCloth (main) ~314.921787ms
 :go-builder»
+
 ```
 
 This ran `go get -u github.com/loeredami/ungo@latest`, with the `GOPROXY` set to `direct`.
 
 `!drop go-builder`, to drop the builder commands and variables
 
+# Executable Trust
+
+LoinCloth includes a source-aware executable trust model to prevent unauthorized external command execution. Trust rules are **session-scoped**: they exist only in process memory during runtime and are never permanently stored or shared across sessions.
+
+### Managing Trust
+
+* `!trust <path|basename>` — Grants execution approval to a specific binary or executable name for the duration of the current session.
+* `!trust-list` — Lists all executables currently trusted in process memory.
+* `!untrust <path|basename>` — Revokes session trust for an executable binary.
+
+### Pre-Seeding via `default.cloth`
+
+When LoinCloth initializes, it can pre-seed trusted binaries into memory from a validated, protected `default.cloth` file:
+
+```cloth
+!trust /usr/bin/echo
+!trust /usr/bin/cat
+!trust /usr/bin/ls
+!trust /usr/bin/git
+
+```
+
+*Note:* External configuration files loaded via `!wear` or the `--cloth` flag cannot grant trust rules; untrusted binaries invoked by secondary cloth files will still require confirmation.
 
 # Other
+
+
+
 ## Comments
+
+
 
 Comments start and end with `##`
 
 example:
+
 ```sh
 ~/Projects/2026/March/LoinCloth (main) ~877.004µs
 » echo Hello ## I am a comment, I will not be printed out. ## World
 Hello World
 ~/Projects/2026/March/LoinCloth (main) ~557.296µs
 »
+
 ```
+
 I really need custom syntax highlighting for this.
 
 ## Inline commands
+
+
 
 Need the output of one command as input for another?
 No problem, just throw it in some `{}`!
@@ -262,10 +325,14 @@ No problem, just throw it in some `{}`!
 { ls output ... }
 ~/Projects/2026/March/LoinCloth (main) ~780.915µs
 »
+
 ```
+
 This example is useless, but it gets the point across.
 
 ## Snapshots
+
+
 
 Like a specific scope or workspace configuration?
 Write it to a file!
@@ -273,35 +340,50 @@ Write it to a file!
 ```sh
 »!snapshot favorite-scope.cloth ## saves a scope to a wearable cloth file ##
 »!snapshot-ws favorite-workspace.cloth ## saves a workspace to a wearable cloth file ##
+
 ```
 
 ## Workspace utility
+
+
 
 If you need another workspace with the configuration of another workspace use the clone command.
 
 ```sh
 »!clone 0 ## clones the workspace at index 0 ##
+
 ```
 
 If you want to give a workspace a name to keep track of it, `!switch` to it, and use.
 
 ```sh
 »!label "My Favourite Workspace" ## This text will now show up next to this workspace ##
+
 ```
 
 If you need to reload your `default.cloth` from your configuration folder just type:
 
 ```sh
 »!reset ## Not to mix up with $reset, which references the default clear command on linux ##
+
 ```
 
 ## Ghost Input
+
+
+
 Ghost input appears as you are typing commands or known variables, press the right arrow key to accept them.
 
 ## Vs Code Syntax Highlighting
+
+
+
 To add syntax highligting for .cloth files in vscode, download the source code, and copy the "cloth-syntax" folder into your vscode extensions folder. `~/.vscode/extensions`
 
 # Configuration
+
+
+
 Since Pre-Release 1.2, LoinCloth creates a `default.cloth` file in your OS's user configuration folder.
 
 Edit "/path/to/user/config/.loin/default.cloth", on linux this for example is:
@@ -316,8 +398,11 @@ Here are some commands you can use:
 `!local prompt ">"` changes the prompt field to be ">"
 
 other strings:
-  * `sudo-prompt`
-  * `scope-sign`
+
+* `sudo-prompt`
+
+* `scope-sign`
+
 
 `!color <color field> <int> [<int> ...]` - Replaces a color with one or more ANSI color codes.
 Each code is emitted as a separate ANSI sequence, so you can combine attributes such as bold,
@@ -326,36 +411,60 @@ foreground color, and background color. Codes can also be grouped with semicolon
 ```sh
 !color input 32
 !color prompt "1;37" 44
+
 ```
 
 The second example sets the prompt to bold (`1`), white foreground (`37`), and background (`44`).
 
 color fields:
-  * `input`
-  * `err`
-  * `ls-dir`
-  * `ls-sym-link`
-  * `ls-exec`
-  * `sudo-prompt`
-  * `prompt`
-  * `idx`
-  * `cur-ws`
-  * `cur-dir`
-  * `cur-dir-indic`
-  * `git-branch`
-  * `time`
-  * `time-prefix`
-  * `scope`
-  * `path`
-  * `input-string`
-  * `input-num`
-  * `input-path`
-  * `input-var`
-  * `input-brace`
-  * `ghost`
-  * `workspace`
 
-  
+* `input`
+
+* `err`
+
+* `ls-dir`
+
+* `ls-sym-link`
+
+* `ls-exec`
+
+* `sudo-prompt`
+
+* `prompt`
+
+* `idx`
+
+* `cur-ws`
+
+* `cur-dir`
+
+* `cur-dir-indic`
+
+* `git-branch`
+
+* `time`
+
+* `time-prefix`
+
+* `scope`
+
+* `path`
+
+* `input-string`
+
+* `input-num`
+
+* `input-path`
+
+* `input-var`
+
+* `input-brace`
+
+* `ghost`
+
+* `workspace`
+
+
 `!disable-colors` - Disables color rendering, good for very old machines.
 `!enable-colors` - Enables color rendering, on by default.
 
