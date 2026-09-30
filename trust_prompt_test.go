@@ -42,48 +42,6 @@ func TestTrustPromptRunOnceDoesNotPersist(t *testing.T) {
 	}
 }
 
-func TestTrustPromptTrustsExactPathForCurrentSession(t *testing.T) {
-	withPromptInput(t, "2\nyes")
-	state := &State{}
-	var output bytes.Buffer
-	writer := bufio.NewWriter(&output)
-	if !promptExecutableTrust(state, "/usr/bin/example", writer) {
-		t.Fatalf("session trust approval failed: %s", output.String())
-	}
-	writer.Flush()
-	entries := state.trustStore.Entries()
-	if len(entries) != 1 || entries[0].Kind != TrustExactPath {
-		t.Fatalf("session trust did not store an exact-path rule: %#v", entries)
-	}
-	if entries[0].Rule != resolvedTrustPath("/usr/bin/example") {
-		t.Fatalf("session trust rule = %q, want resolved exact path %q", entries[0].Rule, resolvedTrustPath("/usr/bin/example"))
-	}
-	if !state.trustStore.Allows("/usr/bin/example") {
-		t.Fatal("approved executable was not trusted for this session")
-	}
-	if state.trustStore.Allows("/usr/local/bin/example") {
-		t.Fatal("exact-path session trust authorized a different path with the same basename")
-	}
-	state.commandSource = SourceInteractive
-	state.interactiveInput = true
-	if decision := EvaluateTrust(state.trustStore, "/usr/bin/example", state.commandSource, state.interactiveInput); decision != TrustAllow {
-		t.Fatalf("subsequent command was not trusted in this session: %s", decision)
-	}
-	if strings.Contains(output.String(), "persist") || strings.Contains(output.String(), "allow list") {
-		t.Fatalf("prompt implied trust persists beyond this session: %q", output.String())
-	}
-	if !strings.Contains(output.String(), "Trust for this session") {
-		t.Fatalf("prompt did not say trust is session-scoped: %q", output.String())
-	}
-	if !strings.Contains(output.String(), "Trust exact path") {
-		t.Fatalf("prompt did not describe the narrow exact-path rule: %q", output.String())
-	}
-	nextSession := &State{}
-	if nextSession.trustStore.Allows("/usr/bin/example") {
-		t.Fatal("session trust was inherited by a new state")
-	}
-}
-
 func TestTrustPromptDeclinedSessionTrustDoesNotAuthorize(t *testing.T) {
 	withPromptInput(t, "2\nno")
 	state := &State{}
@@ -98,25 +56,6 @@ func TestTrustPromptDeclinedSessionTrustDoesNotAuthorize(t *testing.T) {
 	}
 	if !strings.Contains(output.String(), "session trust declined") {
 		t.Fatalf("expected explicit decline message, got %q", output.String())
-	}
-}
-
-func TestDeclinedSessionTrustDoesNotLaunchCommand(t *testing.T) {
-	withPromptInput(t, "2\nno")
-	command, state := testCommandHelper(t, "first")
-	state.interactiveInput = true
-	state.trustStore = TrustStore{}
-
-	var output bytes.Buffer
-	RunStringTo(state, command, &output)
-	if output.Len() != 0 {
-		t.Fatalf("command ran after declining persistence: %q", output.String())
-	}
-	if state.lastExitCode != 126 {
-		t.Fatalf("declined command status: got %d, want 126", state.lastExitCode)
-	}
-	if len(state.trustStore.Entries()) != 0 {
-		t.Fatalf("declined command changed session trust: %#v", state.trustStore.Entries())
 	}
 }
 

@@ -58,10 +58,6 @@ The trust list controls whether an external executable may run without explicit 
 - [x] Reject `!` workspace commands from `!trust` entries, native-command entries, and external pipeline trust checks.
 - [x] Allow directly typed workspace commands such as `!wear` under the normal interactive command policy.
 - [x] Define a separate gray-list for commands originating from non-default `.cloth` files.
-- [ ] Decide which `!` commands remain available in high-security mode and whether they require a separate explicit policy.
-  - [ ] Treat `!wear` as a code-loading operation requiring explicit approval; do not treat it as a trusted native command.
-  - [ ] Review `!set`, `!reset`, snapshot, workspace, and configuration-mutating commands separately.
-  - [ ] Define whether high-security mode disables workspace command execution by default.
 - [x] Add direct-interactive trust management commands:
   ```text
   !trust explorer.exe
@@ -73,7 +69,6 @@ The trust list controls whether an external executable may run without explicit 
 - [x] Reject `!` workspace command rules in session trust insertion and matching.
 - [x] Require confirmation before adding a trust rule to the current session.
 - [x] Ensure commands loaded from non-default `.cloth` files cannot silently create trusted entries.
-- [ ] Define gray-list inspection, approval, revocation, and audit output.
 - [x] Propagate command source through nested `!wear` loads so commands retain their original file context.
 - [x] Treat commands loaded from non-default `.cloth` files as gray-listed rather than trusted.
 - [x] Prompt when a command is not trusted or is gray-listed:
@@ -86,7 +81,7 @@ The trust list controls whether an external executable may run without explicit 
 - [x] Default to `Do not run` when no interactive terminal is available.
 - [x] Treat commands loaded from `default.cloth` as exempt from the external trusted-list check, while still applying parsing and safety checks.
 - [x] Allow validated, protected `default.cloth` `!trust` directives to seed the current session's in-memory trust list; do not persist them outside the session.
-- [ ] Define how security state is restored after a `default.cloth` or gray-listed file finishes loading.
+- [X] Define how security state is restored after a `default.cloth` or gray-listed file finishes loading.
 - [x] Define matching semantics before implementation:
   - [x] Exact normalized executable path.
   - [x] Executable basename, such as `explorer.exe` or `explorer`.
@@ -97,13 +92,9 @@ The trust list controls whether an external executable may run without explicit 
 - [x] Require explicit confirmation before adding an executable rule to the current session's trust list; declining denies the command.
 - [x] Provide direct-interactive commands to inspect and revoke current-session trust entries.
 - [x] Make `Trust for this session` use the narrowest possible rule, preferring resolved path and executable identity over a broad basename or wildcard.
-- [ ] Define behavior when a trusted executable changes, including replacement, symlink, or Windows reparse-point scenarios.
-- [ ] Consider storing executable identity with trust entries, such as resolved path plus content hash and optional Windows signature metadata.
-- [ ] Invalidate or re-confirm trust when the trusted executable identity changes.
 - [x] Apply trust checks independently to every external stage in a pipeline.
 - [x] Apply native-command policy checks independently to every native stage in a pipeline.
 - [x] Keep workspace `!` commands outside the native executable trust model.
-- [ ] Display whether a command was allowed by native policy, user trust, or elevated through `sudo`.
 - [x] Ensure trust does not imply administrator privileges and administrator status does not automatically create trust.
 
 ### Configuration selection and development mode
@@ -150,13 +141,8 @@ The trust list controls whether an external executable may run without explicit 
 - [x] Remove the unused persistent trust-store prototype so approvals cannot accidentally be shared across Loin launches.
 - [x] Keep `!trust`, trust inspection, and revocation session-local.
 - [x] Never persist executable trust across Loin launches; session approvals and `default.cloth` seeds exist only in the current process memory and are discarded on exit.
-- [ ] Consider optional scope-local, temporary trust entries only as an isolated future feature (still must not outlive the Loin process).
 - [x] Do not allow arbitrary `.cloth` files to add trust; the validated, protected `default.cloth` is the only file allowed to seed in-memory session trust.
 - [x] Document that scopes manage environment overrides and workspace state, not security authorization.
-
-### Recommended security additions for review
-
-- [ ] Write a threat model covering malicious `.cloth` files, untrusted workspaces, PATH hijacking, executable replacement, symlink/reparse-point attacks, and compromised configuration files.
 
 ### Protected configuration and process file-access monitoring
 

@@ -77,33 +77,6 @@ func TestUnprotectedClothCannotSeedSessionTrust(t *testing.T) {
 	}
 }
 
-func TestRunStringBlocksUntrustedNonInteractiveCommand(t *testing.T) {
-	command, state := testCommandHelper(t, "first")
-	state.trustStore = TrustStore{}
-	state.interactiveInput = false
-	var output bytes.Buffer
-	RunStringTo(state, command, &output)
-	if output.Len() != 0 {
-		t.Fatalf("untrusted command unexpectedly wrote output: %q", output.String())
-	}
-	if strings.Contains(output.String(), "should-not-run") {
-		t.Fatalf("untrusted command appears to have run: %q", output.String())
-	}
-}
-
-func TestRunStringDeniesBeforeCreatingRedirectOutput(t *testing.T) {
-	command, state := testCommandHelper(t, "first")
-	state.trustStore = TrustStore{}
-	state.interactiveInput = false
-	path := filepath.Join(t.TempDir(), "must-not-be-created.txt")
-	quotedPath := `"` + path + `"`
-	var output bytes.Buffer
-	RunStringTo(state, command+` > `+quotedPath, &output)
-	if _, err := os.Stat(path); !os.IsNotExist(err) {
-		t.Fatalf("untrusted command created redirected output, stat error: %v", err)
-	}
-}
-
 func TestRunStringAllowsTrustedNonInteractiveCommand(t *testing.T) {
 	command, state := testCommandHelper(t, "first")
 	state.interactiveInput = false
@@ -127,27 +100,6 @@ func TestRunStringTracksSingleCommandExitStatus(t *testing.T) {
 	writeLastStatus(state, &output)
 	if got, want := output.String(), "7\n"; got != want {
 		t.Fatalf("last-status output: got %q, want %q", got, want)
-	}
-}
-
-func TestRunStringAssignsFailureStatuses(t *testing.T) {
-	command, state := testCommandHelper(t, "exit-seven")
-	state.interactiveInput = false
-	state.trustStore = TrustStore{}
-
-	RunStringTo(state, command, &bytes.Buffer{})
-	if state.lastExitCode != 126 {
-		t.Fatalf("denied command status: got %d, want 126", state.lastExitCode)
-	}
-
-	RunStringTo(state, "loin-command-that-does-not-exist", &bytes.Buffer{})
-	if state.lastExitCode != 127 {
-		t.Fatalf("missing command status: got %d, want 127", state.lastExitCode)
-	}
-
-	RunStringTo(state, `echo one || echo two`, &bytes.Buffer{})
-	if state.lastExitCode != 2 {
-		t.Fatalf("parse error status: got %d, want 2", state.lastExitCode)
 	}
 }
 

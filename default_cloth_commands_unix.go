@@ -4,10 +4,13 @@ package main
 
 func generatedDefaultClothCommands() []string {
 	return []string{
-		"!trust whoami",
-		"!trust id",
-		"!trust uname",
-		"!trust uptime",
-		"!trust pwd",
+		"!trust /usr/bin/echo",
+		"!trust /usr/bin/cat",
+		"!trust /usr/bin/git",
+		"!trust /usr/bin/grep",
+		"!trust /usr/bin/find",
+		"!trust /usr/bin/curl",
+		"!trust /usr/bin/mkdir",
+		"!trust /usr/bin/touch",
 	}
 }
