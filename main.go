@@ -707,8 +707,10 @@ func runPipeline(state *State, commands []PipelineCommand, output io.Writer) int
 				fmt.Fprintf(output, "%sCommand not found: %s%s\n", state.GetColor(state.config.ErrorCol), command.args[0], state.Reset())
 				return 127
 			}
-			if !authorizeExecutable(state, path, output) {
-				return 126
+			if !state.useTrustedList {
+				if !authorizeExecutable(state, path, output) {
+					return 126
+				}
 			}
 		}
 		var stdin io.Reader = os.Stdin

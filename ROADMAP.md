@@ -38,12 +38,8 @@ Security changes should not begin until the existing parser and interactive-inpu
 - [x] Benchmark `ungo.Queue` for pasted command batches against slice-cursor and string-buffer representations; verify FIFO, empty values, and empty-queue behavior. For 700 commands, the linked queue used 700 allocations/16.8 KB and took about 11.3 us; at 5,000 commands it used 5,000 allocations/120 KB and took about 83 us. The alternatives were materially cheaper in allocations, so keep the current input buffer and do not migrate to one queue node per command. This microbenchmark does not settle chunk-queue memory retention or CRLF/continuation integration.
 - [x] Runtime-verify scope creation, mutation, and `!snapshot` serialization; the saved `.cloth` reproduced the expected scope and override commands.
 - [x] Review `ungo` concurrency candidates before integration: `Worker.Cancel` only sets a flag the worker never checks; worker result/running state and the global registry are unsynchronized; `Promise` uses a consuming channel and `Reject` type-asserts `error` to `T`; `EventLoop` has close/restart and blocking-post lifecycle hazards. Do not adopt these primitives in shell execution without fixing and testing their contracts in `ungo`.
-- [ ] If `ungo` concurrency primitives are improved, test cancellation, shutdown, repeated result access, panic/error propagation, and race safety against standard Go patterns before considering integration.
 - [x] Review `ungo.PipeSequence` as an ergonomic fit for lexing; do not use `ungo.Pipeline` for command execution because its `T -> T` stages cannot express process errors, exit status, cancellation, or I/O ownership.
 - [x] Review `ungo.Specification`, `Exception`, and `ServiceRegistry` as potential conveniences. `Specification` predicate fields lack exported constructors, `Exception` largely wraps Go's existing `(value, error)` flow, and `ServiceRegistry.Add` exits the process on initialization errors while shutdown errors are discarded; none currently improve LoinCloth code safely.
-- [ ] Continue inventorying remaining `ungo` APIs by programmer convenience and application fit; prototype a real use before comparing alternatives.
-- [ ] Record negative results and known limitations as well as adopted improvements; do not adopt a library abstraction solely to maximize usage.
-
 ### Trust-list and source-security 
 
 The trust list controls whether an external executable may run without explicit elevation. It is an execution-authorization layer, not an administrator grant. Security decisions must also know where a command came from: direct interactive input, `default.cloth`, or another `.cloth` file.
@@ -90,7 +86,6 @@ The trust list controls whether an external executable may run without explicit 
 - [x] Default to `Do not run` when no interactive terminal is available.
 - [x] Treat commands loaded from `default.cloth` as exempt from the external trusted-list check, while still applying parsing and safety checks.
 - [x] Allow validated, protected `default.cloth` `!trust` directives to seed the current session's in-memory trust list; do not persist them outside the session.
-- [ ] Ensure only `default.cloth` may use `!toggle-security` during configuration loading.
 - [ ] Define how security state is restored after a `default.cloth` or gray-listed file finishes loading.
 - [x] Define matching semantics before implementation:
   - [x] Exact normalized executable path.

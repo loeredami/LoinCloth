@@ -36,14 +36,16 @@ type Theme struct {
 	InternalCmdCol   string
 	GhostCol         string
 	WorkspaceNameCol string
+	SecurityOffCol   string
 }
 
 type Configuration struct {
 	Theme
-	SudoPrompt string
-	Prompt     string
-	ScopeSign  string
-	ColorMode  bool
+	SudoPrompt      string
+	Prompt          string
+	ScopeSign       string
+	SecurityOffSign string
+	ColorMode       bool
 }
 
 func DefaultConfiguration() Configuration {
@@ -74,11 +76,13 @@ func DefaultConfiguration() Configuration {
 			InternalCmdCol:   Magenta,
 			GhostCol:         Gray,
 			WorkspaceNameCol: Yellow,
+			SecurityOffCol:   Red,
 		},
-		SudoPrompt: "#!",
-		Prompt:     "»",
-		ScopeSign:  ":",
-		ColorMode:  true,
+		SudoPrompt:      "#!",
+		Prompt:          "»",
+		ScopeSign:       ":",
+		SecurityOffSign: "<!>",
+		ColorMode:       true,
 	}
 }
 
