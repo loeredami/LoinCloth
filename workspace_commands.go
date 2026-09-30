@@ -135,6 +135,10 @@ func writeSecurityStatus(state *State, w io.Writer) error {
 	fmt.Fprintf(w, "  interactive: %d\n", interactive)
 	fmt.Fprintf(w, "  default.cloth: %d\n", defaultCloth)
 	fmt.Fprintln(w, "Privilege state: normal (explicit elevation is not active)")
+	if !state.useTrustedList {
+		fmt.Fprintln(w, "  Command trust list is disabled, all commands are trusted by default, use !toggle-security to enable the trust list.")
+		fmt.Fprintln(w, "  Be careful with commands you trust by default, as they can be executed without confirmation.")
+	}
 	fmt.Fprintln(w, "Note: scopes manage environment overrides and workspace state, not executable trust.")
 	return nil
 }
@@ -148,6 +152,15 @@ func init() {
 	RegisterCmd("!security-status", func(state *State, command []string) ungo.Optional[error] {
 		if err := writeSecurityStatus(state, os.Stdout); err != nil {
 			return ungo.Some(err)
+		}
+		return ungo.None[error]()
+	})
+
+	RegisterCmd("!toggle-trust", func(state *State, command []string) ungo.Optional[error] {
+		if state.useTrustedList {
+			state.useTrustedList = false
+		} else {
+			state.useTrustedList = true
 		}
 		return ungo.None[error]()
 	})
@@ -180,7 +193,6 @@ func init() {
 		}
 		entry := TrustEntry{Rule: rule, Kind: kind, Source: source}
 		state.trustStore.Add(entry)
-		fmt.Printf("trusted %s for this session from %s (%s)\n", rule, source, kind)
 		return ungo.None[error]()
 	})
 
@@ -211,7 +223,6 @@ func init() {
 		if !state.trustStore.RemoveRule(kind, rule) {
 			return ungo.Some(fmt.Errorf("trust entry not found: %s", rule))
 		}
-		fmt.Printf("removed trust entry %s\n", rule)
 		return ungo.None[error]()
 	})
 

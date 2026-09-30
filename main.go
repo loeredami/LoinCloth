@@ -1075,6 +1075,19 @@ func ReadConfiguration(state *State) {
 	}
 }
 
+func (state *State) GetConfigFilePath() string {
+	if state.configPath != "" {
+		return state.configPath
+	}
+	path, err := os.UserConfigDir()
+	if err != nil {
+		fmt.Printf("Could not find User config directory.\n")
+		return ""
+	}
+
+	return filepath.Join(path, ".loin", "default.cloth")
+}
+
 func createDefaultClothIfMissing(path string) error {
 	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if os.IsExist(err) {
@@ -1178,9 +1191,10 @@ func main() {
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
 	state := &State{
-		cur_workspace: 0,
-		workspaces:    ungo.NewLinkedList[*Workspace](),
-		config:        DefaultConfiguration(),
+		cur_workspace:  0,
+		workspaces:     ungo.NewLinkedList[*Workspace](),
+		config:         DefaultConfiguration(),
+		useTrustedList: true,
 	}
 
 	start_dir, _ := os.Getwd()
@@ -1213,6 +1227,12 @@ func main() {
 	duration := ungo.None[time.Duration]()
 
 	for {
+		oldConfigExists := true
+		err := PackageConfigurationToMemory(state)
+		err.IfPresent(func(err error) {
+			fmt.Println("failed to package config: " + err.Error())
+			oldConfigExists = false
+		})
 		input := Prompt(state, duration)
 		fmt.Print(state.Reset())
 		duration = ungo.None[time.Duration]()
@@ -1228,5 +1248,27 @@ func main() {
 		start := time.Now()
 		RunString(state, input)
 		duration = ungo.Some(time.Since(start))
+		if oldConfigExists {
+			if HasConfigChanged(state) {
+				PromptKeepConfiguration(state).IfPresent(func(err error) {
+					fmt.Println("failed to prompt configuration diff: " + err.Error())
+				})
+
+				var choise string
+				if _, err := fmt.Fscanln(os.Stdin, &choise); err != nil {
+					fmt.Println("failed to read choice: " + err.Error())
+					continue
+				}
+
+				if len(choise) > 0 && choise[0] == 'n' {
+					RestoreConfiguration(state).IfPresent(func(err error) {
+						fmt.Printf("failed to restore config: %v\n", err)
+					})
+				} else {
+					fmt.Println("Keeping changes.")
+					continue
+				}
+			}
+		}
 	}
 }
