@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -68,6 +69,10 @@ func (state *State) findWordBoundaryRight(buffer []rune, cursor int) int {
 }
 
 func readRawInput(state *State, promptStr string) string {
+	return readRawInputFrom(state, promptStr, os.Stdin)
+}
+
+func readRawInputFrom(state *State, promptStr string, input io.Reader) string {
 	var buffer []rune
 	var commandPrefix strings.Builder
 	cursor := 0
@@ -79,11 +84,18 @@ func readRawInput(state *State, promptStr string) string {
 		var n int
 		if state.pendingInput != "" {
 			n = copy(b, state.pendingInput)
-			state.pendingInput = ""
+			state.pendingInput = state.pendingInput[n:]
 		} else {
 			var err error
-			n, err = os.Stdin.Read(b)
-			if n == 0 || err != nil {
+			n, err = input.Read(b)
+			if n == 0 && err == io.EOF {
+				return "exit"
+			}
+			if n == 0 && err != nil {
+				fmt.Fprintf(os.Stderr, "Error reading input: %v\n", err)
+				return ""
+			}
+			if n == 0 {
 				continue
 			}
 		}
@@ -92,6 +104,12 @@ func readRawInput(state *State, promptStr string) string {
 
 		for i := 0; i < n; i++ {
 			char := b[i]
+			if state.skipNextInputLF {
+				state.skipNextInputLF = false
+				if char == '\n' {
+					continue
+				}
+			}
 
 			if char != 9 {
 				state.lastWasTab = false
@@ -114,8 +132,16 @@ func readRawInput(state *State, promptStr string) string {
 					state.lastRowCount = 1
 					state.RefreshLine(activePrompt, buffer, cursor)
 					needsRefresh = false
-					if char == 13 && i+1 < n && b[i+1] == 10 {
-						i++
+					if char == 13 {
+						if i+1 < n && b[i+1] == 10 {
+							i++
+						} else if i+1 == n {
+							if strings.HasPrefix(state.pendingInput, "\n") {
+								state.pendingInput = strings.TrimPrefix(state.pendingInput, "\n")
+							} else if state.pendingInput == "" {
+								state.skipNextInputLF = true
+							}
+						}
 					}
 					continue
 				}
@@ -125,11 +151,13 @@ func readRawInput(state *State, promptStr string) string {
 					state.history = append(state.history, command)
 				}
 				// Keep commands after this newline so a multi-line paste is not lost.
-				if i+1 < n {
-					state.pendingInput = string(b[i+1 : n])
-				}
-				if char == 13 && i+1 < n && b[i+1] == 10 {
-					state.pendingInput = strings.TrimPrefix(state.pendingInput, "\n")
+				state.pendingInput = string(b[i+1:n]) + state.pendingInput
+				if char == 13 {
+					if strings.HasPrefix(state.pendingInput, "\n") {
+						state.pendingInput = strings.TrimPrefix(state.pendingInput, "\n")
+					} else if i+1 == n && state.pendingInput == "" {
+						state.skipNextInputLF = true
+					}
 				}
 				fmt.Print("\r\n")
 				return command
@@ -157,6 +185,7 @@ func readRawInput(state *State, promptStr string) string {
 				state.lastWasTab = true
 
 			case 3: // Ctrl+C
+				state.pendingInput = string(b[i+1:n]) + state.pendingInput
 				fmt.Print("^C\r\n")
 				return ""
 
@@ -371,6 +400,10 @@ func renderPromptInfo(state *State, time_taken ungo.Optional[time.Duration]) str
 			fmt.Printf("%s%s%s%s", state.config.ScopeSign, state.GetColor(state.config.ScopeCol), s.name, state.Reset())
 		})
 	})
+
+	if !state.useTrustedList {
+		fmt.Printf("%s%s%s", state.GetColor(state.config.SecurityOffCol), state.config.SecurityOffSign, state.Reset())
+	}
 
 	promptStr := fmt.Sprintf("%s%s ", in_sign, state.GetColor(state.config.InputCol))
 	fmt.Print(promptStr)

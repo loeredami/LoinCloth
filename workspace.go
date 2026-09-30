@@ -34,9 +34,27 @@ type State struct {
 
 	// pendingInput stores complete commands that arrived after a newline in
 	// the same paste operation. They are consumed by the next prompt.
-	pendingInput string
+	pendingInput    string
+	skipNextInputLF bool
 
 	config Configuration
+
+	// configPath is an optional startup-selected .cloth file. An empty value
+	// keeps the normal per-user default.cloth behavior.
+	configPath string
+
+	// configSource is the source type of the loaded configuration.
+	configSource CommandSource
+
+	// commandSource identifies where the currently executing command came from.
+	// It is the foundation for trust and gray-list decisions.
+	commandSource CommandSource
+
+	trustStore       TrustStore
+	interactiveInput bool
+	lastExitCode     int
+
+	useTrustedList bool
 }
 
 func (ws *Workspace) Encode() []byte {

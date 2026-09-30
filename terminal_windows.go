@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strings"
 	"syscall"
 	"unsafe"
 )
@@ -43,12 +44,7 @@ func RunWinCommands(cmdArgs []string, w io.Writer) bool {
 		return true
 	}
 	if cmdArgs[0] == "echo" {
-		if len(cmdArgs) > 1 {
-			for _, str := range cmdArgs[1:] {
-				fmt.Fprint(w, str, " ")
-			}
-			fmt.Fprintln(w)
-		}
+		fmt.Fprintln(w, strings.Join(cmdArgs[1:], " "))
 		return true
 	}
 	if cmdArgs[0] == "cp" {

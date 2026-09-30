@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
+	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -250,7 +253,7 @@ func (state *State) HandleAutocomplete(buffer []rune, cursor *int) []rune {
 	return buffer
 }
 
-func (state *State) PrettyLS(w io.Writer, cmdArgs []string) {
+func (state *State) PrettyLS(w io.Writer, cmdArgs []string) int {
 	path := "."
 	if len(cmdArgs) > 1 {
 		path = cmdArgs[1]
@@ -259,7 +262,7 @@ func (state *State) PrettyLS(w io.Writer, cmdArgs []string) {
 	entries, err := os.ReadDir(path)
 	if err != nil {
 		fmt.Fprintf(w, "%sError: %v%s\n", Red, err, Reset)
-		return
+		return 1
 	}
 
 	fmt.Fprintln(w)
@@ -286,6 +289,7 @@ func (state *State) PrettyLS(w io.Writer, cmdArgs []string) {
 		}
 	}
 	fmt.Fprint(w, "\n\n")
+	return 0
 }
 
 func Prompt(state *State, time_taken ungo.Optional[time.Duration]) string {
@@ -391,11 +395,13 @@ func parsePipeline(state *State, tokens []Token) ([]PipelineCommand, error) {
 	current := []Token{}
 	var stdinPath, stdoutPath string
 	appendOut := false
+	stdinRedirected, stdoutRedirected := false, false
 	braceDepth := 0
+	afterPipe := false
 
 	flush := func() error {
 		args := processTokens(state, current)
-		if len(args) == 0 {
+		if len(args) == 0 || args[0] == "" {
 			return fmt.Errorf("expected a command")
 		}
 		commands = append(commands, PipelineCommand{
@@ -408,6 +414,7 @@ func parsePipeline(state *State, tokens []Token) ([]PipelineCommand, error) {
 		stdinPath = ""
 		stdoutPath = ""
 		appendOut = false
+		stdinRedirected, stdoutRedirected = false, false
 		return nil
 	}
 
@@ -415,6 +422,9 @@ func parsePipeline(state *State, tokens []Token) ([]PipelineCommand, error) {
 		token := tokens[i]
 		if token.Type == EndOfInput {
 			break
+		}
+		if token.Type == CloseBrace && braceDepth == 0 {
+			return nil, fmt.Errorf("unmatched closing brace")
 		}
 		if braceDepth > 0 {
 			current = append(current, token)
@@ -434,32 +444,57 @@ func parsePipeline(state *State, tokens []Token) ([]PipelineCommand, error) {
 			if err := flush(); err != nil {
 				return nil, err
 			}
+			afterPipe = true
 		case RedirectIn, RedirectOut, RedirectAppend:
+			if len(current) == 0 && len(commands) > 0 {
+				return nil, fmt.Errorf("redirection has no command in this pipeline stage")
+			}
 			if i+1 >= len(tokens) || tokens[i+1].Type == EndOfInput {
+				return nil, fmt.Errorf("redirection requires a path")
+			}
+			switch tokens[i+1].Type {
+			case Identifier, String, Number, Path, Varname:
+			default:
 				return nil, fmt.Errorf("redirection requires a path")
 			}
 			pathTokens := []Token{tokens[i+1], {Type: EndOfInput}}
 			paths := processTokens(state, pathTokens)
-			if len(paths) != 1 {
+			if len(paths) != 1 || paths[0] == "" {
 				return nil, fmt.Errorf("redirection requires one path")
 			}
 			switch token.Type {
 			case RedirectIn:
+				if stdinRedirected {
+					return nil, fmt.Errorf("input redirection may only be specified once per command")
+				}
 				stdinPath = paths[0]
+				stdinRedirected = true
 			case RedirectOut:
+				if stdoutRedirected {
+					return nil, fmt.Errorf("output redirection may only be specified once per command")
+				}
 				stdoutPath = paths[0]
 				appendOut = false
+				stdoutRedirected = true
 			case RedirectAppend:
+				if stdoutRedirected {
+					return nil, fmt.Errorf("output redirection may only be specified once per command")
+				}
 				stdoutPath = paths[0]
 				appendOut = true
+				stdoutRedirected = true
 			}
 			i++
 		default:
 			current = append(current, token)
+			afterPipe = false
 			if token.Type == OpenBrace {
 				braceDepth++
 			}
 		}
+	}
+	if afterPipe {
+		return nil, fmt.Errorf("pipe has no command after it")
 	}
 	if braceDepth != 0 {
 		return nil, fmt.Errorf("unclosed brace in command")
@@ -476,24 +511,37 @@ func parsePipeline(state *State, tokens []Token) ([]PipelineCommand, error) {
 }
 
 func commandEnvironment(state *State) []string {
-	envMap := make(map[string]string)
-	for _, e := range os.Environ() {
-		pair := strings.SplitN(e, "=", 2)
-		if len(pair) == 2 {
-			envMap[pair[0]] = pair[1]
-		}
-	}
-	state.workspaces.Get(state.cur_workspace).IfPresent(func(ws *Workspace) {
-		ws.scopes.ForEach(func(idx int, s *Scope) {
-			s.overrides.ForEach(func(key string, val string) {
-				envMap[key] = val
+	environment := os.Environ()
+	overrideCount := 0
+	if state != nil {
+		state.workspaces.Get(state.cur_workspace).IfPresent(func(ws *Workspace) {
+			ws.scopes.ForEach(func(idx int, s *Scope) {
+				overrideCount += s.overrides.Size()
 			})
 		})
-	})
-	finalEnv := make([]string, 0, len(envMap))
-	for k, v := range envMap {
-		finalEnv = append(finalEnv, fmt.Sprintf("%s=%s", k, v))
 	}
+
+	envMap := ungo.NewSmallMap[string, string](len(environment) + overrideCount)
+	for _, entry := range environment {
+		key, value, ok := strings.Cut(entry, "=")
+		if ok {
+			envMap.Set(key, value)
+		}
+	}
+	if state != nil {
+		state.workspaces.Get(state.cur_workspace).IfPresent(func(ws *Workspace) {
+			ws.scopes.ForEach(func(_ int, scope *Scope) {
+				scope.overrides.ForEach(func(key, value string) {
+					envMap.Set(key, value)
+				})
+			})
+		})
+	}
+
+	finalEnv := make([]string, 0, envMap.Size())
+	envMap.ForEach(func(key, value string) {
+		finalEnv = append(finalEnv, key+"="+value)
+	})
 	return finalEnv
 }
 
@@ -506,7 +554,10 @@ func RunTokenPipelineAndCapture(state *State, tokens []Token) string {
 		return ""
 	}
 	var output strings.Builder
-	runPipeline(state, commands, &output)
+	status := runPipeline(state, commands, &output)
+	if state != nil {
+		state.lastExitCode = status
+	}
 	return output.String()
 }
 
@@ -525,14 +576,14 @@ func isPipelineInternal(name string) bool {
 	}
 }
 
-func runBufferedPipeline(state *State, commands []PipelineCommand, output io.Writer) {
+func runBufferedPipeline(state *State, commands []PipelineCommand, output io.Writer) int {
 	var input io.Reader = os.Stdin
 	var inputFile *os.File
 	if commands[0].stdinPath != "" {
 		file, err := os.Open(commands[0].stdinPath)
 		if err != nil {
 			fmt.Fprintf(output, "%s%v%s\n", state.GetColor(state.config.ErrorCol), err, state.Reset())
-			return
+			return 1
 		}
 		inputFile = file
 		defer inputFile.Close()
@@ -544,24 +595,25 @@ func runBufferedPipeline(state *State, commands []PipelineCommand, output io.Wri
 			file, err := os.Open(command.stdinPath)
 			if err != nil {
 				fmt.Fprintf(output, "%s%v%s\n", state.GetColor(state.config.ErrorCol), err, state.Reset())
-				return
+				return 1
 			}
 			data, readErr := io.ReadAll(file)
 			file.Close()
 			if readErr != nil {
 				fmt.Fprintf(output, "%s%v%s\n", state.GetColor(state.config.ErrorCol), readErr, state.Reset())
-				return
+				return 1
 			}
 			input = bytes.NewReader(data)
 		}
 		if command.args[0] == "cd" {
 			fmt.Fprintf(output, "%scd cannot be used in a pipeline%s\n", state.GetColor(state.config.ErrorCol), state.Reset())
-			return
+			return 1
 		}
 
 		var stageOutput bytes.Buffer
+		stageStatus := 0
 		if isPipelineInternal(command.args[0]) && command.args[0] != "ls" {
-			Run(state, command.args, &stageOutput)
+			stageStatus = Run(state, command.args, &stageOutput)
 		} else if command.args[0] == "ls" {
 			path := "."
 			if len(command.args) > 1 {
@@ -570,7 +622,7 @@ func runBufferedPipeline(state *State, commands []PipelineCommand, output io.Wri
 			entries, err := os.ReadDir(path)
 			if err != nil {
 				fmt.Fprintf(output, "%s%v%s\n", state.GetColor(state.config.ErrorCol), err, state.Reset())
-				return
+				return 1
 			}
 			for _, entry := range entries {
 				name := entry.Name()
@@ -583,7 +635,7 @@ func runBufferedPipeline(state *State, commands []PipelineCommand, output io.Wri
 			path, err := exec.LookPath(command.args[0])
 			if err != nil {
 				fmt.Fprintf(output, "%sCommand not found: %s%s\n", state.GetColor(state.config.ErrorCol), command.args[0], state.Reset())
-				return
+				return 127
 			}
 			process := exec.Command(path, command.args[1:]...)
 			process.Stdin = input
@@ -592,8 +644,14 @@ func runBufferedPipeline(state *State, commands []PipelineCommand, output io.Wri
 			process.Env = commandEnvironment(state)
 			if err := process.Run(); err != nil {
 				fmt.Fprintf(output, "%s%v%s\n", state.GetColor(state.config.ErrorCol), err, state.Reset())
-				return
+				stageStatus = processExitStatus(err)
 			}
+		}
+		if stageStatus != 0 {
+			if _, err := io.Copy(output, &stageOutput); err != nil {
+				return 1
+			}
+			return stageStatus
 		}
 
 		if command.stdoutPath != "" {
@@ -606,13 +664,13 @@ func runBufferedPipeline(state *State, commands []PipelineCommand, output io.Wri
 			file, err := os.OpenFile(command.stdoutPath, flags, 0644)
 			if err != nil {
 				fmt.Fprintf(output, "%s%v%s\n", state.GetColor(state.config.ErrorCol), err, state.Reset())
-				return
+				return 1
 			}
 			_, writeErr := file.Write(stageOutput.Bytes())
 			file.Close()
 			if writeErr != nil {
 				fmt.Fprintf(output, "%s%v%s\n", state.GetColor(state.config.ErrorCol), writeErr, state.Reset())
-				return
+				return 1
 			}
 			stageOutput.Reset()
 		}
@@ -623,33 +681,56 @@ func runBufferedPipeline(state *State, commands []PipelineCommand, output io.Wri
 			input = bytes.NewReader(stageOutput.Bytes())
 		}
 	}
+	return 0
 }
 
-func runPipeline(state *State, commands []PipelineCommand, output io.Writer) {
+func processExitStatus(err error) int {
+	if err == nil {
+		return 0
+	}
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) && exitErr.ExitCode() >= 0 {
+		return exitErr.ExitCode()
+	}
+	return 1
+}
+
+func runPipeline(state *State, commands []PipelineCommand, output io.Writer) int {
 	if len(commands) == 0 {
-		return
+		return 0
 	}
 	if len(commands) == 1 {
 		command := commands[0]
+		if !isPipelineInternal(command.args[0]) {
+			path, err := exec.LookPath(command.args[0])
+			if err != nil {
+				fmt.Fprintf(output, "%sCommand not found: %s%s\n", state.GetColor(state.config.ErrorCol), command.args[0], state.Reset())
+				return 127
+			}
+			if state.useTrustedList {
+				if !authorizeExecutable(state, path, output) {
+					return 126
+				}
+			}
+		}
 		var stdin io.Reader = os.Stdin
 		var inputFile *os.File
 		if command.stdinPath != "" {
 			if strings.HasPrefix(command.args[0], "!") || command.args[0] == "cd" || command.args[0] == "ls" {
 				fmt.Fprintf(output, "%sinput redirection is not supported for internal commands%s\n", state.GetColor(state.config.ErrorCol), state.Reset())
-				return
+				return 1
 			}
 			file, err := os.Open(command.stdinPath)
 			if err != nil {
 				fmt.Fprintf(output, "%s%v%s\n", state.GetColor(state.config.ErrorCol), err, state.Reset())
-				return
+				return 1
 			}
 			inputFile = file
 			defer inputFile.Close()
 			stdin = inputFile
 		}
 		if command.stdoutPath == "" {
-			runWithStdin(state, command.args, output, stdin)
-			return
+			return runWithStdinApproved(state, command.args, output, stdin)
 		}
 		flags := os.O_CREATE | os.O_WRONLY
 		if command.appendOut {
@@ -660,33 +741,57 @@ func runPipeline(state *State, commands []PipelineCommand, output io.Writer) {
 		file, err := os.OpenFile(command.stdoutPath, flags, 0644)
 		if err != nil {
 			fmt.Fprintf(output, "%s%v%s\n", state.GetColor(state.config.ErrorCol), err, state.Reset())
-			return
+			return 1
 		}
 		defer file.Close()
-		runWithStdin(state, command.args, file, stdin)
-		return
+		return runWithStdinApproved(state, command.args, file, stdin)
 	}
 
 	for i, command := range commands {
 		if len(command.args) == 0 {
 			fmt.Fprintf(output, "%sempty command in pipeline%s\n", state.GetColor(state.config.ErrorCol), state.Reset())
-			return
+			return 2
+		}
+		if !isPipelineInternal(command.args[0]) {
+			path, err := exec.LookPath(command.args[0])
+			if err != nil {
+				fmt.Fprintf(output, "%sCommand not found: %s%s\n", state.GetColor(state.config.ErrorCol), command.args[0], state.Reset())
+				return 127
+			}
+			if !authorizeExecutable(state, path, output) {
+				return 126
+			}
 		}
 		if isPipelineInternal(command.args[0]) ||
 			(i < len(commands)-1 && command.stdoutPath != "") || (i > 0 && command.stdinPath != "") {
-			runBufferedPipeline(state, commands, output)
-			return
+			return runBufferedPipeline(state, commands, output)
 		}
 	}
 
 	execs := make([]*exec.Cmd, len(commands))
 	readers := make([]io.ReadCloser, len(commands)-1)
 	writers := make([]io.WriteCloser, len(commands)-1)
+	var redirectedFiles []*os.File
+	defer func() {
+		for _, file := range redirectedFiles {
+			_ = file.Close()
+		}
+		for _, reader := range readers {
+			if reader != nil {
+				_ = reader.Close()
+			}
+		}
+		for _, writer := range writers {
+			if writer != nil {
+				_ = writer.Close()
+			}
+		}
+	}()
 	for i, command := range commands {
 		path, err := exec.LookPath(command.args[0])
 		if err != nil {
 			fmt.Fprintf(output, "%sCommand not found: %s%s\n", state.GetColor(state.config.ErrorCol), command.args[0], state.Reset())
-			return
+			return 127
 		}
 		execs[i] = exec.Command(path, command.args[1:]...)
 		execs[i].Env = commandEnvironment(state)
@@ -697,15 +802,16 @@ func runPipeline(state *State, commands []PipelineCommand, output io.Writer) {
 			file, err := os.Open(command.stdinPath)
 			if err != nil {
 				fmt.Fprintf(output, "%s%v%s\n", state.GetColor(state.config.ErrorCol), err, state.Reset())
-				return
+				return 1
 			}
 			execs[i].Stdin = file
+			redirectedFiles = append(redirectedFiles, file)
 		}
 		if i < len(commands)-1 {
 			reader, writer, err := os.Pipe()
 			if err != nil {
 				fmt.Fprintf(output, "%s%v%s\n", state.GetColor(state.config.ErrorCol), err, state.Reset())
-				return
+				return 1
 			}
 			readers[i] = reader
 			writers[i] = writer
@@ -720,19 +826,37 @@ func runPipeline(state *State, commands []PipelineCommand, output io.Writer) {
 			file, err := os.OpenFile(command.stdoutPath, flags, 0644)
 			if err != nil {
 				fmt.Fprintf(output, "%s%v%s\n", state.GetColor(state.config.ErrorCol), err, state.Reset())
-				return
+				return 1
 			}
 			execs[i].Stdout = file
+			redirectedFiles = append(redirectedFiles, file)
 		} else {
 			execs[i].Stdout = output
 		}
 	}
 
-	for _, command := range execs {
+	started := make([]bool, len(execs))
+	for i, command := range execs {
 		if err := command.Start(); err != nil {
 			fmt.Fprintf(output, "%s%v%s\n", state.GetColor(state.config.ErrorCol), err, state.Reset())
-			return
+			for _, writer := range writers {
+				if writer != nil {
+					_ = writer.Close()
+				}
+			}
+			for _, reader := range readers {
+				if reader != nil {
+					_ = reader.Close()
+				}
+			}
+			for j, startedCommand := range execs {
+				if started[j] {
+					_ = startedCommand.Wait()
+				}
+			}
+			return 1
 		}
+		started[i] = true
 	}
 	for _, writer := range writers {
 		writer.Close()
@@ -740,14 +864,41 @@ func runPipeline(state *State, commands []PipelineCommand, output io.Writer) {
 	for _, reader := range readers {
 		reader.Close()
 	}
+	status := 0
 	for i, command := range execs {
-		if err := command.Wait(); err != nil && i == len(execs)-1 {
-			fmt.Fprintf(output, "%s%v%s\n", state.GetColor(state.config.ErrorCol), err, state.Reset())
+		err := command.Wait()
+		if i == len(execs)-1 {
+			status = processExitStatus(err)
+			if err != nil {
+				fmt.Fprintf(output, "%s%v%s\n", state.GetColor(state.config.ErrorCol), err, state.Reset())
+			}
 		}
 	}
+	return status
 }
 
 func RunString(state *State, input string) {
+	RunStringFromSource(state, input, SourceInteractive)
+}
+
+func RunStringFromSource(state *State, input string, source CommandSource) {
+	RunStringToSource(state, input, os.Stdout, source)
+}
+
+func RunStringTo(state *State, input string, output io.Writer) {
+	RunStringToSource(state, input, output, SourceInteractive)
+}
+
+func RunStringToSource(state *State, input string, output io.Writer, source CommandSource) {
+	previousSource := SourceInteractive
+	if state != nil {
+		previousSource = state.commandSource
+		state.commandSource = source
+		defer func() {
+			state.commandSource = previousSource
+		}()
+	}
+
 	tokens := Lex(input)
 	tokenSlice := []Token{}
 	tokens.ForEach(func(idx int, token Token) {
@@ -757,21 +908,35 @@ func RunString(state *State, input string) {
 	commands, err := parsePipeline(state, tokenSlice)
 	if err != nil {
 		fmt.Fprintf(os.Stdout, "%s%v%s\n", state.GetColor(state.config.ErrorCol), err, state.Reset())
+		if state != nil {
+			state.lastExitCode = 2
+		}
 		return
 	}
 	if len(commands) == 0 {
 		return
 	}
-	runPipeline(state, commands, os.Stdout)
+	status := runPipeline(state, commands, output)
+	if state != nil {
+		state.lastExitCode = status
+	}
 }
 
-func Run(state *State, cmdArgs []string, w io.Writer) {
-	runWithStdin(state, cmdArgs, w, os.Stdin)
+func Run(state *State, cmdArgs []string, w io.Writer) int {
+	return runWithStdin(state, cmdArgs, w, os.Stdin)
 }
 
-func runWithStdin(state *State, cmdArgs []string, w io.Writer, stdin io.Reader) {
+func runWithStdin(state *State, cmdArgs []string, w io.Writer, stdin io.Reader) int {
+	return runWithStdinPolicy(state, cmdArgs, w, stdin, state.useTrustedList)
+}
+
+func runWithStdinApproved(state *State, cmdArgs []string, w io.Writer, stdin io.Reader) int {
+	return runWithStdinPolicy(state, cmdArgs, w, stdin, false)
+}
+
+func runWithStdinPolicy(state *State, cmdArgs []string, w io.Writer, stdin io.Reader, checkTrust bool) int {
 	if len(cmdArgs) == 0 {
-		return
+		return 0
 	}
 
 	if !strings.HasPrefix(cmdArgs[0], "!") {
@@ -781,32 +946,34 @@ func runWithStdin(state *State, cmdArgs []string, w io.Writer, stdin io.Reader) 
 				err := os.Chdir(target)
 				if err != nil {
 					fmt.Fprintf(w, "%s%v%s\n", state.GetColor(state.config.ErrorCol), err, state.Reset())
-					return
+					return 1
 				}
 				state.workspaces.Get(state.cur_workspace).IfPresent(func(ws *Workspace) {
 					ws.path, _ = os.Getwd()
 				})
 			}
-			return
+			return 0
 		}
 
 		if cmdArgs[0] == "ls" {
-			state.PrettyLS(w, cmdArgs)
-			return
+			return state.PrettyLS(w, cmdArgs)
 		}
 
 		if is_windows {
 			if RunWinCommands(cmdArgs, w) {
-				return
+				return 0
 			}
 		}
 
 		cmdPath, err := exec.LookPath(cmdArgs[0])
 		if err != nil {
 			fmt.Fprintf(w, "%sCommand not found: %s%s\n", state.GetColor(state.config.ErrorCol), cmdArgs[0], state.Reset())
-			return
+			return 127
 		}
 
+		if checkTrust && !authorizeExecutable(state, cmdPath, w) {
+			return 126
+		}
 		c := exec.Command(cmdPath, cmdArgs[1:]...)
 		c.Stdout = w
 		c.Stdin = stdin
@@ -820,13 +987,15 @@ func runWithStdin(state *State, cmdArgs []string, w io.Writer, stdin io.Reader) 
 			}
 		}
 
-		state.workspaces.Get(state.cur_workspace).IfPresent(func(ws *Workspace) {
-			ws.scopes.ForEach(func(idx int, s *Scope) {
-				s.overrides.ForEach(func(key string, val string) {
-					envMap[key] = val
+		if state != nil {
+			state.workspaces.Get(state.cur_workspace).IfPresent(func(ws *Workspace) {
+				ws.scopes.ForEach(func(idx int, s *Scope) {
+					s.overrides.ForEach(func(key string, val string) {
+						envMap[key] = val
+					})
 				})
 			})
-		})
+		}
 
 		finalEnv := make([]string, 0, len(envMap))
 		for k, v := range envMap {
@@ -838,38 +1007,58 @@ func runWithStdin(state *State, cmdArgs []string, w io.Writer, stdin io.Reader) 
 		if err != nil {
 			fmt.Fprintf(w, "%s%v%s\n", state.GetColor(state.config.ErrorCol), err, state.Reset())
 		}
+		return processExitStatus(err)
 	} else {
 		res := HandleStateCommands(state, cmdArgs)
+		status := 0
 		res.IfPresent(func(err error) {
 			fmt.Fprintf(w, "%s%v%s\n", state.GetColor(state.config.ErrorCol), err, state.Reset())
+			status = 1
 		})
+		return status
 	}
+	return 0
 }
 
 func ReadConfiguration(state *State) {
-	path, err := os.UserConfigDir()
-	if err != nil {
-		fmt.Printf("Could not find User config directory.\n")
-		return
+	configFilePath := state.configPath
+	isDefaultConfig := configFilePath == ""
+	if isDefaultConfig {
+		path, err := os.UserConfigDir()
+		if err != nil {
+			fmt.Printf("Could not find User config directory.\n")
+			return
+		}
+
+		path = filepath.Join(path, ".loin")
+		err = os.MkdirAll(path, 0700)
+		if err != nil {
+			fmt.Printf("Error creating configuration directory: %v\n", err)
+			return
+		}
+
+		configFilePath = filepath.Join(path, "default.cloth")
+		if err := createDefaultClothIfMissing(configFilePath); err != nil {
+			fmt.Printf("Error ensuring configuration file exists: %v\n", err)
+			return
+		}
 	}
 
-	path = filepath.Join(path, ".loin")
-
-	err = os.MkdirAll(path, 0755)
-	if err != nil {
-		fmt.Printf("Error creating configuration directory: %v\n", err)
-		return
+	source := configurationCommandSource(isDefaultConfig, false)
+	var data []byte
+	var err error
+	if isDefaultConfig {
+		data, err = readProtectedDefaultCloth(configFilePath)
+		if err == nil {
+			source = configurationCommandSource(true, true)
+		} else {
+			fmt.Printf("Warning: default.cloth is not trusted (%v); treating its commands as gray-listed.\n", err)
+			data, err = readDefaultCloth(configFilePath)
+		}
+	} else {
+		data, err = os.ReadFile(configFilePath)
 	}
-
-	configFilePath := filepath.Join(path, "default.cloth")
-	f, err := os.OpenFile(configFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		fmt.Printf("Error ensuring configuration file exists: %v\n", err)
-		return
-	}
-	f.Close()
-
-	data, err := os.ReadFile(configFilePath)
+	state.configSource = source
 	if err != nil {
 		fmt.Printf("Error reading configuration: %v\n", err)
 		return
@@ -878,21 +1067,134 @@ func ReadConfiguration(state *State) {
 	lines := strings.Split(string(data), "\n")
 	for _, line := range lines {
 		if strings.TrimSpace(line) != "" {
-			RunString(state, line)
+			RunStringFromSource(state, line, source)
 		}
+	}
+	if source == SourceDefaultCloth {
+		warnMissingDefaultClothTrustTargets(os.Stderr)
 	}
 }
 
+func (state *State) GetConfigFilePath() string {
+	if state.configPath != "" {
+		return state.configPath
+	}
+	path, err := os.UserConfigDir()
+	if err != nil {
+		fmt.Printf("Could not find User config directory.\n")
+		return ""
+	}
+
+	return filepath.Join(path, ".loin", "default.cloth")
+}
+
+func createDefaultClothIfMissing(path string) error {
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if os.IsExist(err) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("create default.cloth: %w", err)
+	}
+
+	content := strings.Join(generatedDefaultClothCommands(), "\n") + "\n"
+	_, writeErr := io.WriteString(file, content)
+	closeErr := file.Close()
+	if writeErr != nil || closeErr != nil {
+		removeErr := os.Remove(path)
+		return errors.Join(writeErr, closeErr, removeErr)
+	}
+	return nil
+}
+
+func validateSelectedCloth(path string) error {
+	info, err := os.Lstat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("configuration file %q does not exist", path)
+		}
+		return fmt.Errorf("configuration file %q is unreadable: %w", path, err)
+	}
+	if info.IsDir() {
+		return fmt.Errorf("configuration path %q is a directory, not a file", path)
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("configuration path %q is not a regular file", path)
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("configuration file %q is unreadable: %w", path, err)
+	}
+	return f.Close()
+}
+
+func selectedClothWarning(path string) string {
+	defaultDir, err := os.UserConfigDir()
+	if err != nil {
+		return fmt.Sprintf("Warning: selected configuration %q is outside the protected default configuration location.", path)
+	}
+	defaultPath := filepath.Join(defaultDir, ".loin", "default.cloth")
+	selectedAbs, err := filepath.Abs(path)
+	if err != nil {
+		return fmt.Sprintf("Warning: selected configuration %q is outside the protected default configuration location.", path)
+	}
+	defaultAbs, err := filepath.Abs(defaultPath)
+	if err != nil || filepath.Clean(selectedAbs) != filepath.Clean(defaultAbs) {
+		return fmt.Sprintf("Warning: selected configuration %q is outside the protected default configuration location.", path)
+	}
+	return ""
+}
+
+func RunNonInteractive(state *State) {
+	if err := runNonInteractive(state, os.Stdin); err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading command input: %v\n", err)
+	}
+}
+
+func runNonInteractive(state *State, input io.Reader) error {
+	scanner := bufio.NewScanner(input)
+	var command strings.Builder
+
+	for scanner.Scan() {
+		line := strings.TrimSuffix(scanner.Text(), "\r")
+		continued := strings.HasSuffix(line, "\\")
+		if continued {
+			line = strings.TrimSuffix(line, "\\")
+		}
+		command.WriteString(line)
+
+		if continued {
+			command.WriteByte(' ')
+			continue
+		}
+
+		input := strings.TrimSpace(command.String())
+		command.Reset()
+		if input == "exit" {
+			return nil
+		}
+		if input != "" {
+			RunStringFromSource(state, input, SourceNonInteractive)
+		}
+	}
+	return scanner.Err()
+}
+
 func main() {
+	selectedCloth := flag.String("cloth", "", "load a specific .cloth configuration file")
+	flag.Parse()
+
 	InitTerminal()
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
 	state := &State{
-		cur_workspace: 0,
-		workspaces:    ungo.NewLinkedList[*Workspace](),
-		config:        DefaultConfiguration(),
+		cur_workspace:  0,
+		workspaces:     ungo.NewLinkedList[*Workspace](),
+		config:         DefaultConfiguration(),
+		useTrustedList: true,
 	}
 
 	start_dir, _ := os.Getwd()
@@ -902,11 +1204,35 @@ func main() {
 		scopes: ungo.NewLinkedList[*Scope](),
 	})
 
+	if info, err := os.Stdin.Stat(); err == nil {
+		state.interactiveInput = info.Mode()&os.ModeCharDevice != 0
+	}
+	if *selectedCloth != "" {
+		if err := validateSelectedCloth(*selectedCloth); err != nil {
+			fmt.Fprintln(os.Stderr, "Error:", err)
+			os.Exit(1)
+		}
+		if warning := selectedClothWarning(*selectedCloth); warning != "" {
+			fmt.Fprintln(os.Stderr, warning)
+		}
+	}
+
+	state.configPath = *selectedCloth
 	state.ResetConfig()
+	if info, err := os.Stdin.Stat(); err == nil && info.Mode()&os.ModeCharDevice == 0 {
+		RunNonInteractive(state)
+		return
+	}
 
 	duration := ungo.None[time.Duration]()
 
 	for {
+		oldConfigExists := true
+		err := PackageConfigurationToMemory(state)
+		err.IfPresent(func(err error) {
+			fmt.Println("failed to package config: " + err.Error())
+			oldConfigExists = false
+		})
 		input := Prompt(state, duration)
 		fmt.Print(state.Reset())
 		duration = ungo.None[time.Duration]()
@@ -922,5 +1248,27 @@ func main() {
 		start := time.Now()
 		RunString(state, input)
 		duration = ungo.Some(time.Since(start))
+		if oldConfigExists {
+			if HasConfigChanged(state) {
+				PromptKeepConfiguration(state).IfPresent(func(err error) {
+					fmt.Println("failed to prompt configuration diff: " + err.Error())
+				})
+
+				var choise string
+				if _, err := fmt.Fscanln(os.Stdin, &choise); err != nil {
+					fmt.Println("failed to read choice: " + err.Error())
+					continue
+				}
+
+				if len(choise) > 0 && choise[0] == 'n' {
+					RestoreConfiguration(state).IfPresent(func(err error) {
+						fmt.Printf("failed to restore config: %v\n", err)
+					})
+				} else {
+					fmt.Println("Keeping changes.")
+					continue
+				}
+			}
+		}
 	}
 }
